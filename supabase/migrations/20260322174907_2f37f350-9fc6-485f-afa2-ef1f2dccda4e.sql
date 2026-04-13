@@ -1,0 +1,1 @@
+ALTER TABLE public.product_variants ADD COLUMN IF NOT EXISTS estampa text DEFAULT NULL;

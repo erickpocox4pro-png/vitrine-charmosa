@@ -1,0 +1,1 @@
+ALTER TABLE public.product_variants ADD COLUMN IF NOT EXISTS color_name text;

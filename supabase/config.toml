@@ -1,0 +1,13 @@
+project_id = "ggjinjhczkwjcnopwkol"
+
+[functions.generate-product-ai]
+verify_jwt = false
+
+[functions.cleanup-expired-orders]
+verify_jwt = false
+
+[functions.cleanup-audit-logs]
+verify_jwt = false
+
+[functions.ai-financial-recommendations]
+verify_jwt = false

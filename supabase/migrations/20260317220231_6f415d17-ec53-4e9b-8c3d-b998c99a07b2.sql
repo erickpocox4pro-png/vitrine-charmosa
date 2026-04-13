@@ -1,0 +1,1 @@
+ALTER TABLE public.coupons ADD COLUMN applies_to text NOT NULL DEFAULT 'products';
