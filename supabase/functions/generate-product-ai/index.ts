@@ -26,8 +26,8 @@ serve(async (req) => {
     const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: user.id, _role: "admin" });
     if (!isAdmin) return new Response(JSON.stringify({ error: "Sem permissão" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const AI_GATEWAY_KEY = Deno.env.get("AI_GATEWAY_KEY");
+    if (!AI_GATEWAY_KEY) throw new Error("AI_GATEWAY_KEY is not configured");
 
     const { productName, category, brand, field, imageUrl } = await req.json();
 
@@ -112,10 +112,10 @@ Se o texto for confuso, faça o melhor possível para extrair as variantes.`,
       },
     ];
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://ai-gateway.services.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${AI_GATEWAY_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ model: "google/gemini-2.5-flash", messages }),

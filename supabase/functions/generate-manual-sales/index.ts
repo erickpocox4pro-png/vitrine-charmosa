@@ -35,15 +35,15 @@ serve(async (req) => {
       });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    const AI_GATEWAY_KEY = Deno.env.get("AI_GATEWAY_KEY");
+    if (!AI_GATEWAY_KEY) throw new Error("AI_GATEWAY_KEY not configured");
 
     const today = new Date().toISOString().split("T")[0];
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://ai-gateway.services.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${AI_GATEWAY_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({

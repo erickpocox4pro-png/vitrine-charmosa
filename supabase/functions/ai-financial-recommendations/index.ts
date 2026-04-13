@@ -14,8 +14,8 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!;
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!lovableKey) throw new Error("LOVABLE_API_KEY not configured");
+    const aiKey = Deno.env.get("AI_GATEWAY_KEY");
+    if (!aiKey) throw new Error("AI_GATEWAY_KEY not configured");
 
     // Auth check
     const authHeader = req.headers.get("authorization") || "";
@@ -127,10 +127,10 @@ Estruture sua resposta EXATAMENTE nestas seções:
 ## 🎯 Aumento do Ticket Médio
 ## 📅 Descontos em Datas Especiais`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://ai-gateway.services.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${lovableKey}`,
+        Authorization: `Bearer ${aiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
