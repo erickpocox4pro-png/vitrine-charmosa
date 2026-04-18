@@ -91,7 +91,7 @@ const FeaturedProductsSection = ({ props }: { props: Record<string, any> }) => {
         <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-8 md:mb-12">
           <h2 className="font-heading text-2xl md:text-3xl lg:text-4xl text-foreground font-bold">{title}</h2>
         </motion.div>
-        <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 ${gridCols} gap-4 md:gap-6`}>
+        <div className={`grid grid-cols-2 md:grid-cols-3 ${gridCols} gap-3 sm:gap-4 md:gap-6`}>
           {featured.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}

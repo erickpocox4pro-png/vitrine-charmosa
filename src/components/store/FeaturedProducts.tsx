@@ -43,7 +43,7 @@ const FeaturedProducts = () => {
           <p className="font-body text-muted-foreground mt-1.5 text-xs md:text-sm">As peças mais recentes da coleção</p>
         </motion.div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           {newProducts.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
