@@ -1,8 +1,23 @@
-<IfModule mod_rewrite.c>
-  RewriteEngine On
-  RewriteBase /
-  RewriteRule ^index\.html$ - [L]
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteRule . /index.html [L]
-</IfModule>
+# SPA fallback — todas as rotas não-arquivo vão para index.html
+# Sem wrapper <IfModule> porque LiteSpeed (Hostinger) não registra como mod_rewrite.c
+Options -MultiViews
+RewriteEngine On
+RewriteBase /
+
+# Não reescrever para arquivos ou diretórios reais
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Qualquer outra rota vai para index.html (SPA do React Router trata)
+RewriteRule ^ index.html [L]
+
+# Cache longo para assets com hash (Vite)
+<FilesMatch "\.(js|css|woff2?|ttf|png|jpg|jpeg|gif|webp|svg|ico)$">
+  Header set Cache-Control "public, max-age=31536000, immutable"
+</FilesMatch>
+
+# HTML nunca em cache
+<FilesMatch "\.html$">
+  Header set Cache-Control "no-cache, no-store, must-revalidate"
+</FilesMatch>
