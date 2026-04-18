@@ -214,12 +214,13 @@ serve(async (req) => {
     }
 
     // Apply product discount via Stripe coupon
+    const siteUrl = Deno.env.get("SITE_URL") || "https://vitrinecharmosa.com.br";
     const sessionParams: any = {
       line_items: lineItems,
       mode: "payment",
       payment_method_types: ["card"],
-      success_url: `${req.headers.get("origin")}/`,
-      cancel_url: `${req.headers.get("origin")}/checkout`,
+      success_url: `${siteUrl}/`,
+      cancel_url: `${siteUrl}/checkout`,
       metadata: {
         shipping_address: JSON.stringify(shippingAddress),
       },
