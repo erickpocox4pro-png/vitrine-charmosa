@@ -33,9 +33,9 @@ jobs:
       - name: Build project
         run: npm run build
 
-      - name: Deploy to implantar branch
+      - name: Deploy to deploy branch
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
-          publish_branch: implantar
+          publish_branch: deploy
