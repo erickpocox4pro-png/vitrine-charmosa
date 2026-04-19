@@ -6,6 +6,28 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function bufferToBase64(buf: ArrayBuffer): string {
+  const bytes = new Uint8Array(buf);
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunk)));
+  }
+  return btoa(binary);
+}
+
+async function fetchImageAsInlineData(url: string): Promise<{ mimeType: string; data: string } | null> {
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) return null;
+    const mimeType = resp.headers.get("content-type")?.split(";")[0] || "image/jpeg";
+    const buf = await resp.arrayBuffer();
+    return { mimeType, data: bufferToBase64(buf) };
+  } catch {
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -14,7 +36,6 @@ serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!;
 
-    // Auth check
     const authHeader = req.headers.get("authorization") || "";
     const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
@@ -26,8 +47,8 @@ serve(async (req) => {
     const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: user.id, _role: "admin" });
     if (!isAdmin) return new Response(JSON.stringify({ error: "Sem permissão" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-    const AI_GATEWAY_KEY = Deno.env.get("AI_GATEWAY_KEY");
-    if (!AI_GATEWAY_KEY) throw new Error("AI_GATEWAY_KEY is not configured");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not configured");
 
     const { productName, category, brand, field, imageUrl } = await req.json();
 
@@ -45,7 +66,7 @@ serve(async (req) => {
 - Nunca invente certificações, prêmios ou características técnicas fictícias.
 - NUNCA mencione cores específicas do produto (ex: "preto", "vermelho", "azul"). O mesmo produto pode ter diversas variantes de cor, então a descrição deve ser genérica e aplicável a TODAS as variantes. Use termos neutros como "tons versáteis", "diversas opções de cores" ou simplesmente não mencione cores.`;
 
-    const imageAnalysisNote = imageUrl 
+    const imageAnalysisNote = imageUrl
       ? `\nUma imagem do produto foi fornecida para análise. Use as informações visuais (cores, estilo, modelagem, detalhes visíveis) para enriquecer a descrição com dados reais do produto. Descreva APENAS o que é visível na imagem.`
       : "";
 
@@ -60,7 +81,7 @@ serve(async (req) => {
 2. Meta descrição (máximo 160 caracteres, persuasiva com call-to-action)
 3. Palavras-chave (5-8 palavras separadas por vírgula)
 
-Responda EXATAMENTE neste formato JSON:
+Responda EXATAMENTE neste formato JSON (sem markdown, sem \`\`\`):
 {"meta_title": "...", "meta_description": "...", "keywords": "..."}`,
       all: `${imageDisclaimer}\n\nPara o produto "${productName}"${category ? ` da categoria "${category}"` : ""}${brand ? ` da marca "${brand}"` : ""}, gere todos os campos abaixo:${imageAnalysisNote}
 
@@ -73,7 +94,7 @@ Responda EXATAMENTE neste formato JSON:
 7. Palavras-chave (5-8 palavras separadas por vírgula)
 8. Tags (6-10 tags relevantes separadas por vírgula)
 
-Responda EXATAMENTE neste formato JSON:
+Responda EXATAMENTE neste formato JSON (sem markdown, sem \`\`\`):
 {"short_description": "...", "description": "...", "slug": "...", "sku": "...", "meta_title": "...", "meta_description": "...", "keywords": "...", "tags": "..."}`,
       variants: `O usuário descreveu as variantes de um produto assim: "${productName}".
 Analise o texto e extraia as variantes. Para cada variante, identifique:
@@ -82,7 +103,7 @@ Analise o texto e extraia as variantes. Para cada variante, identifique:
 - size: tamanho (ex: "P", "M", "G", "GG", "Único"). Se não mencionado, deixe vazio.
 - numbering: numeração (ex: "34", "36", "38"). Se não mencionada, deixe vazio.
 
-Responda EXATAMENTE neste formato JSON:
+Responda EXATAMENTE neste formato JSON (sem markdown, sem \`\`\`):
 {"variants": [{"color": "...", "color_hex": "...", "size": "...", "numbering": "..."}, ...]}
 
 Se o texto for confuso, faça o melhor possível para extrair as variantes.`,
@@ -96,30 +117,29 @@ Se o texto for confuso, faça o melhor possível para extrair as variantes.`,
       });
     }
 
-    const userContent: any[] = [];
+    const parts: any[] = [{ text: prompt }];
     const visionFields = ["description", "short_description", "tags", "all"];
-    
     if (imageUrl && visionFields.includes(field)) {
-      userContent.push({ type: "text", text: prompt });
-      userContent.push({ type: "image_url", image_url: { url: imageUrl } });
+      const inline = await fetchImageAsInlineData(imageUrl);
+      if (inline) parts.push({ inlineData: inline });
     }
 
-    const messages = [
-      { role: "system", content: "Você é um especialista em e-commerce e copywriting para lojas de moda feminina no Brasil. Gere conteúdo persuasivo, profissional e otimizado para SEO. Sempre responda em português brasileiro. NUNCA invente informações técnicas fictícias sobre produtos." },
-      { 
-        role: "user", 
-        content: imageUrl && visionFields.includes(field) ? userContent : prompt 
-      },
-    ];
+    const systemInstruction = {
+      parts: [{ text: "Você é um especialista em e-commerce e copywriting para lojas de moda feminina no Brasil. Gere conteúdo persuasivo, profissional e otimizado para SEO. Sempre responda em português brasileiro. NUNCA invente informações técnicas fictícias sobre produtos." }],
+    };
 
-    const response = await fetch("https://ai-gateway.services.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${AI_GATEWAY_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ model: "google/gemini-2.5-flash", messages }),
-    });
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemInstruction,
+          contents: [{ role: "user", parts }],
+          generationConfig: { temperature: 0.7 },
+        }),
+      }
+    );
 
     if (!response.ok) {
       if (response.status === 429) {
@@ -127,18 +147,15 @@ Se o texto for confuso, faça o melhor possível para extrair as variantes.`,
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Créditos de IA esgotados." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
       const t = await response.text();
-      console.error("AI gateway error:", response.status, t);
+      console.error("Gemini API error:", response.status, t);
       throw new Error("Erro ao gerar conteúdo com IA");
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || "";
+    let content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    // Remove markdown fences se vierem
+    content = content.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
 
     return new Response(JSON.stringify({ content, field }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

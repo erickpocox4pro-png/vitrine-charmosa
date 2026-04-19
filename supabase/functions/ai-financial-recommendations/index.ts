@@ -14,10 +14,9 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!;
-    const aiKey = Deno.env.get("AI_GATEWAY_KEY");
-    if (!aiKey) throw new Error("AI_GATEWAY_KEY not configured");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
 
-    // Auth check
     const authHeader = req.headers.get("authorization") || "";
     const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
@@ -29,38 +28,32 @@ serve(async (req) => {
     const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: user.id, _role: "admin" });
     if (!isAdmin) return new Response(JSON.stringify({ error: "Sem permissão" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-    // Fetch orders (paid/delivered)
     const { data: orders } = await supabase
       .from("orders")
       .select("id, total, status, payment_method, shipping_cost, created_at")
       .order("created_at", { ascending: false })
       .limit(500);
 
-    // Fetch manual sales
     const { data: manualSales } = await supabase
       .from("manual_sales")
       .select("total, payment_method, sale_date, quantity, product_name")
       .order("sale_date", { ascending: false })
       .limit(500);
 
-    // Fetch coupons
     const { data: coupons } = await supabase
       .from("coupons")
       .select("code, discount_type, discount_value, usage_count, usage_limit, is_active");
 
-    // Fetch products for avg price analysis
     const { data: products } = await supabase
       .from("products")
       .select("name, price, original_price, is_active, category")
       .eq("is_active", true)
       .limit(200);
 
-    // Fetch costs from admin-only table
     const { data: productCosts } = await supabase
       .from("product_costs")
       .select("product_id, cost");
 
-    // Build summary
     const paidOrders = (orders || []).filter((o) =>
       ["paid", "delivered", "shipped", "processing"].includes(o.status)
     );
@@ -127,42 +120,66 @@ Estruture sua resposta EXATAMENTE nestas seções:
 ## 🎯 Aumento do Ticket Médio
 ## 📅 Descontos em Datas Especiais`;
 
-    const response = await fetch("https://ai-gateway.services.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${aiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          {
-            role: "user",
-            content: `Aqui estão os dados financeiros atuais da loja:\n\n${financialContext}\n\nForneça uma análise completa com recomendações práticas e específicas baseadas nesses números reais.`,
-          },
-        ],
-        stream: true,
-      }),
-    });
+    const userContent = `Aqui estão os dados financeiros atuais da loja:\n\n${financialContext}\n\nForneça uma análise completa com recomendações práticas e específicas baseadas nesses números reais.`;
 
-    if (!response.ok) {
-      if (response.status === 429) {
+    const upstream = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse&key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          contents: [{ role: "user", parts: [{ text: userContent }] }],
+          generationConfig: { temperature: 0.7 },
+        }),
+      }
+    );
+
+    if (!upstream.ok) {
+      if (upstream.status === 429) {
         return new Response(JSON.stringify({ error: "Limite de requisições excedido. Tente novamente em alguns minutos." }), {
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Créditos insuficientes. Adicione fundos na sua conta." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const t = await response.text();
-      console.error("AI gateway error:", response.status, t);
-      throw new Error("AI gateway error");
+      const t = await upstream.text();
+      console.error("Gemini API error:", upstream.status, t);
+      throw new Error("Gemini API error");
     }
 
-    return new Response(response.body, {
+    // Transform Gemini SSE -> OpenAI-style SSE (frontend espera esse formato)
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    const transform = new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        buffer += decoder.decode(chunk, { stream: true });
+        let idx: number;
+        while ((idx = buffer.indexOf("\n")) !== -1) {
+          let line = buffer.slice(0, idx);
+          buffer = buffer.slice(idx + 1);
+          if (line.endsWith("\r")) line = line.slice(0, -1);
+          if (!line.startsWith("data: ")) continue;
+          const jsonStr = line.slice(6).trim();
+          if (!jsonStr) continue;
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const text = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) {
+              const out = `data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\n`;
+              controller.enqueue(encoder.encode(out));
+            }
+          } catch {
+            // ignora chunks incompletos
+          }
+        }
+      },
+      flush(controller) {
+        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+      },
+    });
+
+    return new Response(upstream.body!.pipeThrough(transform), {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
   } catch (e) {

@@ -15,7 +15,6 @@ serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!;
 
-    // Auth check
     const authHeader = req.headers.get("authorization") || "";
     const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
@@ -35,23 +34,12 @@ serve(async (req) => {
       });
     }
 
-    const AI_GATEWAY_KEY = Deno.env.get("AI_GATEWAY_KEY");
-    if (!AI_GATEWAY_KEY) throw new Error("AI_GATEWAY_KEY not configured");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
 
     const today = new Date().toISOString().split("T")[0];
 
-    const response = await fetch("https://ai-gateway.services.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${AI_GATEWAY_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          {
-            role: "system",
-            content: `Você é um assistente que gera registros de vendas manuais a partir de descrições em linguagem natural.
+    const systemPrompt = `Você é um assistente que gera registros de vendas manuais a partir de descrições em linguagem natural.
 A data de hoje é ${today}.
 Gere os registros individuais de venda. Cada registro deve ter:
 - product_name: nome do produto (se não especificado, use "Produto não especificado")
@@ -67,14 +55,18 @@ IMPORTANTE:
 - Se o usuário especifica múltiplas datas, distribua as vendas conforme descrito
 - Datas no formato dd/mm/yyyy devem ser convertidas para ISO
 - Se uma data não existe (ex: 30/02), use o último dia válido do mês
-- Sempre retorne um array de objetos, mesmo que seja só 1 venda`,
-          },
-          { role: "user", content: prompt },
-        ],
-        tools: [
-          {
-            type: "function",
-            function: {
+- Sempre retorne um array de objetos, mesmo que seja só 1 venda`;
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          tools: [{
+            functionDeclarations: [{
               name: "create_sales",
               description: "Cria múltiplas vendas manuais",
               parameters: {
@@ -98,14 +90,19 @@ IMPORTANTE:
                   },
                 },
                 required: ["sales"],
-                additionalProperties: false,
               },
+            }],
+          }],
+          toolConfig: {
+            functionCallingConfig: {
+              mode: "ANY",
+              allowedFunctionNames: ["create_sales"],
             },
           },
-        ],
-        tool_choice: { type: "function", function: { name: "create_sales" } },
-      }),
-    });
+          generationConfig: { temperature: 0.1 },
+        }),
+      }
+    );
 
     if (!response.ok) {
       if (response.status === 429) {
@@ -113,23 +110,19 @@ IMPORTANTE:
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Créditos de IA esgotados." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
       const t = await response.text();
-      console.error("AI error:", response.status, t);
+      console.error("Gemini API error:", response.status, t);
       throw new Error("Erro ao processar com IA");
     }
 
     const data = await response.json();
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall) throw new Error("IA não retornou dados estruturados");
+    const parts = data.candidates?.[0]?.content?.parts || [];
+    const fnCallPart = parts.find((p: any) => p.functionCall?.name === "create_sales");
+    if (!fnCallPart) throw new Error("IA não retornou dados estruturados");
 
-    const parsed = JSON.parse(toolCall.function.arguments);
-    
-    return new Response(JSON.stringify({ sales: parsed.sales }), {
+    const sales = fnCallPart.functionCall.args?.sales || [];
+
+    return new Response(JSON.stringify({ sales }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
