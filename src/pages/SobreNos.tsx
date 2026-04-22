@@ -1,9 +1,15 @@
 import Header from "@/components/store/Header";
 import Footer from "@/components/store/Footer";
+import SEO from "@/components/SEO";
 import { MapPin } from "lucide-react";
 
 const SobreNos = () => (
   <div className="min-h-screen bg-background">
+    <SEO
+      title="Sobre Nós"
+      description="Conheça a história da Vitrine Charmosa: moda feminina, acessórios e peças selecionadas que unem conforto, estilo e qualidade."
+      path="/sobre-nos"
+    />
     <Header />
     <main className="container max-w-3xl py-16 px-4">
       <h1 className="font-heading text-3xl md:text-4xl font-bold text-foreground mb-8">Sobre Nós</h1>

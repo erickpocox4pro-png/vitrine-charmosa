@@ -1,9 +1,15 @@
 import Header from "@/components/store/Header";
 import Footer from "@/components/store/Footer";
+import SEO from "@/components/SEO";
 import { Truck } from "lucide-react";
 
 const EntregaFrete = () => (
   <div className="min-h-screen bg-background">
+    <SEO
+      title="Entrega e Frete"
+      description="Informações sobre prazos de entrega, formas de envio e custos de frete da Vitrine Charmosa. Enviamos para todo o Brasil."
+      path="/entrega-frete"
+    />
     <Header />
     <main className="container max-w-3xl py-16 px-4">
       <h1 className="font-heading text-3xl md:text-4xl font-bold text-foreground mb-8">Entrega e Frete</h1>

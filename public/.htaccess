@@ -4,6 +4,9 @@ Options -MultiViews
 RewriteEngine On
 RewriteBase /
 
+# Sitemap dinâmico: redireciona para a edge function do Supabase
+RewriteRule ^sitemap\.xml$ https://vmcvocoajkibwobcapqr.supabase.co/functions/v1/sitemap [R=302,L]
+
 # Não reescrever para arquivos ou diretórios reais
 RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d

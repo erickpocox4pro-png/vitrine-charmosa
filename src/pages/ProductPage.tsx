@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "@/components/store/Header";
 import Footer from "@/components/store/Footer";
+import SEO, { SITE_URL, SITE_NAME, DEFAULT_DESCRIPTION } from "@/components/SEO";
 import { STORE_COLOR_PRESETS } from "@/data/colorPresets";
 
 const resolveColorToCSS = (color: string): string => {
@@ -264,8 +265,55 @@ const ProductPage = () => {
     );
   }
 
+  const productImage = getProductImage(product.image_url);
+  const productPath = `/produto/${product.slug || product.id}`;
+  const productDesc =
+    product.meta_description ||
+    product.short_description ||
+    (product.description ? product.description.replace(/<[^>]+>/g, "").slice(0, 160) : DEFAULT_DESCRIPTION);
+
+  const productJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    description: productDesc,
+    image: [productImage],
+    sku: product.sku || product.id,
+    ...(product.brand ? { brand: { "@type": "Brand", name: product.brand } } : {}),
+    offers: {
+      "@type": "Offer",
+      url: `${SITE_URL}${productPath}`,
+      priceCurrency: "BRL",
+      price: product.price,
+      availability: "https://schema.org/InStock",
+      itemCondition: "https://schema.org/NewCondition",
+      seller: { "@type": "Organization", name: SITE_NAME },
+    },
+  };
+
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+      ...(product.category
+        ? [{ "@type": "ListItem", position: 2, name: product.category, item: `${SITE_URL}/#categoria-${product.category}` }]
+        : []),
+      { "@type": "ListItem", position: product.category ? 3 : 2, name: product.name, item: `${SITE_URL}${productPath}` },
+    ],
+  };
+
   return (
     <>
+      <SEO
+        title={product.meta_title || product.name}
+        description={productDesc}
+        image={productImage}
+        path={productPath}
+        type="product"
+        keywords={product.keywords || undefined}
+        jsonLd={[productJsonLd, breadcrumbJsonLd]}
+      />
       <Header />
       <main className="min-h-screen pt-[52px] lg:pt-[68px] pb-0 bg-background">
         <div className="max-w-7xl mx-auto">

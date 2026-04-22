@@ -1,8 +1,25 @@
+# robots.txt — Vitrine Charmosa
+# https://vitrinecharmosa.com.br
+
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /checkout
+Disallow: /minha-conta
+Disallow: /login
+Disallow: /cadastro
+
 User-agent: Googlebot
 Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /checkout
+Disallow: /minha-conta
 
 User-agent: Bingbot
 Allow: /
+Disallow: /admin
 
 User-agent: Twitterbot
 Allow: /
@@ -10,5 +27,4 @@ Allow: /
 User-agent: facebookexternalhit
 Allow: /
 
-User-agent: *
-Allow: /
+Sitemap: https://vitrinecharmosa.com.br/sitemap.xml

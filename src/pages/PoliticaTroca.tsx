@@ -1,8 +1,14 @@
 import Header from "@/components/store/Header";
 import Footer from "@/components/store/Footer";
+import SEO from "@/components/SEO";
 
 const PoliticaTroca = () => (
   <div className="min-h-screen bg-background">
+    <SEO
+      title="Política de Troca e Devolução"
+      description="Saiba como trocar ou devolver produtos comprados na Vitrine Charmosa. Processo simples, rápido e seguro para você."
+      path="/politica-troca"
+    />
     <Header />
     <main className="container max-w-3xl py-16 px-4">
       <h1 className="font-heading text-3xl md:text-4xl font-bold text-foreground mb-8">Política de Troca</h1>
