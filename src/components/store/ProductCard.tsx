@@ -26,7 +26,7 @@ const ProductCard = ({ product }: Props) => {
     toast.success(`${product.name} adicionado!`);
   };
 
-  const productUrl = `/produto/${product.id}`;
+  const productUrl = `/produto/${product.slug || product.id}`;
   const discount = product.original_price
     ? Math.round(((product.original_price - product.price) / product.original_price) * 100)
     : 0;

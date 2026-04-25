@@ -46,7 +46,7 @@ const Header = () => {
   const navLinks = useMemo(() => {
     const dynamicCategoryLinks = categories
       .slice(0, 5)
-      .map((category) => ({ label: category.name, href: `/#categoria-${category.slug}` }));
+      .map((category) => ({ label: category.name, href: `/categoria/${category.slug}` }));
 
     return [
       { label: "Todos os Produtos", href: "/#produtos" },
@@ -63,15 +63,25 @@ const Header = () => {
             <img src={logo} alt="Vitrine Charmosa" className="h-20 w-auto transition-transform" style={{ imageRendering: "auto", transform: `scale(${logoScale})`, transformOrigin: logoAlign === "right" ? "right center" : logoAlign === "center" ? "center center" : "left center" }} />
           </Link>
           <nav className="flex items-center gap-8">
-            {navLinks.map((link) => (
-              <a
-                key={link.label}
-                href={link.href}
-                className="text-sm font-body font-medium text-foreground/70 hover:text-primary transition-colors tracking-wide"
-              >
-                {link.label}
-              </a>
-            ))}
+            {navLinks.map((link) =>
+              link.href.startsWith("/#") ? (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  className="text-sm font-body font-medium text-foreground/70 hover:text-primary transition-colors tracking-wide"
+                >
+                  {link.label}
+                </a>
+              ) : (
+                <Link
+                  key={link.label}
+                  to={link.href}
+                  className="text-sm font-body font-medium text-foreground/70 hover:text-primary transition-colors tracking-wide"
+                >
+                  {link.label}
+                </Link>
+              )
+            )}
           </nav>
           <div className="flex items-center gap-5">
             <button onClick={() => setSearchOpen(true)} className="text-foreground/70 hover:text-primary transition-colors" aria-label="Buscar">
@@ -147,16 +157,27 @@ const Header = () => {
               className="lg:hidden bg-card border-t border-border/40 overflow-hidden"
             >
               <div className="px-5 py-4 space-y-1">
-                {navLinks.map((link) => (
-                  <a
-                    key={link.label}
-                    href={link.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="block text-[15px] font-body font-medium text-foreground/80 hover:text-primary active:text-primary transition-colors py-3 px-3 rounded-xl active:bg-secondary/40"
-                  >
-                    {link.label}
-                  </a>
-                ))}
+                {navLinks.map((link) =>
+                  link.href.startsWith("/#") ? (
+                    <a
+                      key={link.label}
+                      href={link.href}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="block text-[15px] font-body font-medium text-foreground/80 hover:text-primary active:text-primary transition-colors py-3 px-3 rounded-xl active:bg-secondary/40"
+                    >
+                      {link.label}
+                    </a>
+                  ) : (
+                    <Link
+                      key={link.label}
+                      to={link.href}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="block text-[15px] font-body font-medium text-foreground/80 hover:text-primary active:text-primary transition-colors py-3 px-3 rounded-xl active:bg-secondary/40"
+                    >
+                      {link.label}
+                    </Link>
+                  )
+                )}
               </div>
             </motion.nav>
           )}

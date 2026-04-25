@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getProductImage } from "@/data/products";
+import { useCategories } from "@/data/categories";
 import ProductCard from "@/components/store/ProductCard";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -40,6 +41,8 @@ const ProductPage = () => {
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const minSwipe = 50;
+
+  const { data: allCategories = [] } = useCategories();
 
   const { data: product, isLoading } = useQuery({
     queryKey: ["product", slug],
@@ -267,6 +270,9 @@ const ProductPage = () => {
 
   const productImage = getProductImage(product.image_url);
   const productPath = `/produto/${product.slug || product.id}`;
+  const categorySlug = allCategories.find(
+    (c) => c.id === product.category_id || c.name === product.category
+  )?.slug;
   const productDesc =
     product.meta_description ||
     product.short_description ||
@@ -296,10 +302,10 @@ const ProductPage = () => {
     "@type": "BreadcrumbList",
     itemListElement: [
       { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
-      ...(product.category
-        ? [{ "@type": "ListItem", position: 2, name: product.category, item: `${SITE_URL}/#categoria-${product.category}` }]
+      ...(product.category && categorySlug
+        ? [{ "@type": "ListItem", position: 2, name: product.category, item: `${SITE_URL}/categoria/${categorySlug}` }]
         : []),
-      { "@type": "ListItem", position: product.category ? 3 : 2, name: product.name, item: `${SITE_URL}${productPath}` },
+      { "@type": "ListItem", position: product.category && categorySlug ? 3 : 2, name: product.name, item: `${SITE_URL}${productPath}` },
     ],
   };
 
@@ -321,9 +327,15 @@ const ProductPage = () => {
           <nav className="hidden lg:flex items-center gap-2 text-xs font-body text-muted-foreground px-8 py-4">
             <Link to="/" className="hover:text-foreground transition-colors">Home</Link>
             <span>/</span>
-            {product.category && (
+            {product.category && categorySlug && (
               <>
-                <span className="hover:text-foreground transition-colors cursor-pointer">{product.category}</span>
+                <Link to={`/categoria/${categorySlug}`} className="hover:text-foreground transition-colors">{product.category}</Link>
+                <span>/</span>
+              </>
+            )}
+            {product.category && !categorySlug && (
+              <>
+                <span className="text-muted-foreground">{product.category}</span>
                 <span>/</span>
               </>
             )}

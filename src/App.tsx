@@ -15,6 +15,7 @@ import Register from "./pages/Register";
 import Account from "./pages/Account";
 import Checkout from "./pages/Checkout";
 import ProductPage from "./pages/ProductPage";
+import CategoryPage from "./pages/CategoryPage";
 import SobreNos from "./pages/SobreNos";
 import PoliticaTroca from "./pages/PoliticaTroca";
 import GuiaTamanhos from "./pages/GuiaTamanhos";
@@ -69,6 +70,7 @@ const AppRoutes = () => {
       <Route path="/" element={<Index />} />
       <Route path="/login" element={<Login />} />
       <Route path="/produto/:slug" element={<ProductPage />} />
+      <Route path="/categoria/:slug" element={<CategoryPage />} />
       <Route path="/cadastro" element={<Register />} />
       <Route path="/minha-conta" element={<Account />} />
       <Route path="/checkout" element={<Checkout />} />

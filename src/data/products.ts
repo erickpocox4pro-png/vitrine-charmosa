@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface Product {
   id: string;
+  slug: string | null;
   name: string;
   price: number;
   original_price: number | null;
@@ -40,7 +41,7 @@ export const useProducts = () => {
     queryFn: async (): Promise<Product[]> => {
       const { data, error } = await supabase
         .from("products")
-        .select("id, name, price, original_price, image_url, category, category_id, is_new, is_active, bg_color_group, sort_order")
+        .select("id, slug, name, price, original_price, image_url, category, category_id, is_new, is_active, bg_color_group, sort_order")
         .eq("is_active", true)
         .order("sort_order", { ascending: true })
         .order("created_at", { ascending: false });

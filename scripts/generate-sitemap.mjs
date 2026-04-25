@@ -83,7 +83,7 @@ async function main() {
   for (const c of categories || []) {
     if (!c.slug) continue;
     urls.push(`  <url>
-    <loc>${SITE_URL}/#categoria-${escapeXml(c.slug)}</loc>
+    <loc>${SITE_URL}/categoria/${escapeXml(c.slug)}</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>`);
