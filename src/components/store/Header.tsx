@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import SearchOverlay from "./SearchOverlay";
 import CartDrawer from "./CartDrawer";
 import defaultLogo from "@/assets/logo-vitrine-charmosa.png";
+import defaultLogoWebp from "@/assets/logo-vitrine-charmosa.webp";
 import { useCategories } from "@/data/categories";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -40,6 +41,7 @@ const Header = () => {
   });
 
   const logo = logoSettings?.url || defaultLogo;
+  const isDefaultLogo = !logoSettings?.url;
   const logoScale = (logoSettings?.scale ?? 100) / 100;
   const logoAlign = logoSettings?.align || "left";
 
@@ -60,7 +62,19 @@ const Header = () => {
         {/* Desktop */}
         <div className={`hidden lg:flex items-center px-8 py-3 ${logoAlign === "center" ? "justify-center gap-8" : "justify-between"}`}>
           <Link to="/" className={`flex-shrink-0 ${logoAlign === "right" ? "order-last" : ""}`}>
-            <img src={logo} alt="Vitrine Charmosa" className="h-20 w-auto transition-transform" style={{ imageRendering: "auto", transform: `scale(${logoScale})`, transformOrigin: logoAlign === "right" ? "right center" : logoAlign === "center" ? "center center" : "left center" }} />
+            <picture>
+              {isDefaultLogo && <source srcSet={defaultLogoWebp} type="image/webp" />}
+              <img
+                src={logo}
+                alt="Vitrine Charmosa"
+                className="h-20 w-auto transition-transform"
+                width={240}
+                height={80}
+                decoding="async"
+                fetchPriority="high"
+                style={{ imageRendering: "auto", transform: `scale(${logoScale})`, transformOrigin: logoAlign === "right" ? "right center" : logoAlign === "center" ? "center center" : "left center" }}
+              />
+            </picture>
           </Link>
           <nav className="flex items-center gap-8">
             {navLinks.map((link) =>
@@ -114,7 +128,19 @@ const Header = () => {
             {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
           <Link to="/" className="absolute left-1/2 -translate-x-1/2">
-            <img src={logo} alt="Vitrine Charmosa" className="h-14 w-auto transition-transform" style={{ imageRendering: "auto", transform: `scale(${logoScale})`, transformOrigin: "center center" }} />
+            <picture>
+              {isDefaultLogo && <source srcSet={defaultLogoWebp} type="image/webp" />}
+              <img
+                src={logo}
+                alt="Vitrine Charmosa"
+                className="h-14 w-auto transition-transform"
+                width={168}
+                height={56}
+                decoding="async"
+                fetchPriority="high"
+                style={{ imageRendering: "auto", transform: `scale(${logoScale})`, transformOrigin: "center center" }}
+              />
+            </picture>
           </Link>
           <div className="flex items-center gap-1">
             <button

@@ -7,8 +7,19 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import hero1 from "@/assets/hero-1.jpg";
 import hero2 from "@/assets/hero-2.jpg";
 import hero3 from "@/assets/hero-3.jpg";
+import hero1Webp from "@/assets/hero-1.webp";
+import hero2Webp from "@/assets/hero-2.webp";
+import hero3Webp from "@/assets/hero-3.webp";
 
 const defaultSlides = [hero1, hero2, hero3];
+const defaultSlidesWebp = [hero1Webp, hero2Webp, hero3Webp];
+
+// Map JPG bundlado -> WebP irmão (só pros defaults; URLs do admin não tem webp)
+const bundledWebpMap: Record<string, string> = {
+  [hero1]: hero1Webp,
+  [hero2]: hero2Webp,
+  [hero3]: hero3Webp,
+};
 
 const HeroSlideshow = () => {
   const isMobile = useIsMobile();
@@ -85,17 +96,22 @@ const HeroSlideshow = () => {
           {slides.map((slide, index) => (
             <div key={`${slide}-${index}`} className="min-w-0 shrink-0 grow-0 basis-full">
               <div className="relative w-full overflow-hidden aspect-[9/16] md:aspect-[16/9]">
-                <img
-                  src={slide}
-                  alt={`Banner ${index + 1}`}
-                  className="h-full w-full object-cover"
-                  loading={index === 0 ? "eager" : "lazy"}
-                  fetchPriority={index === 0 ? "high" : "low"}
-                  decoding={index === 0 ? "sync" : "async"}
-                  width={isMobile ? 720 : 1920}
-                  height={isMobile ? 1280 : 1080}
-                  draggable={false}
-                />
+                <picture>
+                  {bundledWebpMap[slide] && (
+                    <source srcSet={bundledWebpMap[slide]} type="image/webp" />
+                  )}
+                  <img
+                    src={slide}
+                    alt={`Banner ${index + 1}`}
+                    className="h-full w-full object-cover"
+                    loading={index === 0 ? "eager" : "lazy"}
+                    fetchPriority={index === 0 ? "high" : "low"}
+                    decoding={index === 0 ? "sync" : "async"}
+                    width={isMobile ? 720 : 1920}
+                    height={isMobile ? 1280 : 1080}
+                    draggable={false}
+                  />
+                </picture>
               </div>
             </div>
           ))}
