@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import PixPayment from "@/components/store/PixPayment";
+import { metaPixel } from "@/lib/metaPixel";
+import { getAttributionContext } from "@/lib/visitTracker";
 
 import applePay from "@/assets/payments/apple-pay.webp";
 import googlePay from "@/assets/payments/google-pay.png";
@@ -206,7 +208,42 @@ const Checkout = () => {
   const goToPayment = () => {
     if (!validateAddress()) return;
     setStep("payment");
+    // Pixel: InitiateCheckout
+    metaPixel.initiateCheckout({
+      value: totalPrice,
+      num_items: items.reduce((s, i) => s + i.quantity, 0),
+    });
+    // Lead (cliente preencheu dados → vira lead qualificado)
+    metaPixel.lead({ value: totalPrice });
   };
+
+  // Atribuição enviada nas edge functions — pra gravar source da venda
+  const attribution = useMemo(() => {
+    const ctx = getAttributionContext();
+    return {
+      attribution_session_id: ctx.session_id,
+      utm_source: ctx.last.utm_source,
+      utm_medium: ctx.last.utm_medium,
+      utm_campaign: ctx.last.utm_campaign,
+      utm_term: ctx.last.utm_term,
+      utm_content: ctx.last.utm_content,
+      fbclid: ctx.last.fbclid,
+      gclid: ctx.last.gclid,
+      source_first: ctx.first?.source_label || ctx.last.source_label,
+      source_last: ctx.last.source_label,
+    };
+  }, []);
+
+  // Pixel: ViewCart quando entra no /checkout
+  useEffect(() => {
+    if (items.length > 0 && step === "address") {
+      metaPixel.initiateCheckout({
+        value: totalPrice,
+        num_items: items.reduce((s, i) => s + i.quantity, 0),
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleStripeCheckout = async () => {
     setProcessingPayment(true);
@@ -222,6 +259,7 @@ const Checkout = () => {
           shippingAddress: { name, email, phone, cep, street, number, complement, neighborhood, city, state },
           productCouponCode: productCoupon?.code || null,
           shippingCouponCode: shippingCoupon?.code || null,
+          attribution,
         },
       });
       if (error) throw error;
@@ -256,6 +294,7 @@ const Checkout = () => {
         shippingAddress={{ name, email, phone, cep, street, number, complement, neighborhood, city, state }}
         productCouponCode={productCoupon?.code || null}
         shippingCouponCode={shippingCoupon?.code || null}
+        attribution={attribution}
         onBack={() => setStep("payment")}
       />
     );

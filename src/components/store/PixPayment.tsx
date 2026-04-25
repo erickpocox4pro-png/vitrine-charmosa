@@ -5,6 +5,7 @@ import { useCart } from "@/contexts/CartContext";
 import { toast } from "sonner";
 import { ArrowLeft, Copy, Check, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { metaPixel } from "@/lib/metaPixel";
 
 const WHATSAPP_NUMBER = "5582993879439";
 
@@ -14,10 +15,11 @@ interface Props {
   shippingAddress: Record<string, string>;
   productCouponCode: string | null;
   shippingCouponCode: string | null;
+  attribution?: Record<string, any>;
   onBack: () => void;
 }
 
-const PixPayment = ({ items, cep, shippingAddress, productCouponCode, shippingCouponCode, onBack }: Props) => {
+const PixPayment = ({ items, cep, shippingAddress, productCouponCode, shippingCouponCode, attribution, onBack }: Props) => {
   const { clearCart } = useCart();
   const [pixCode, setPixCode] = useState("");
   const [pixPayload, setPixPayload] = useState("");
@@ -34,6 +36,7 @@ const PixPayment = ({ items, cep, shippingAddress, productCouponCode, shippingCo
           shippingAddress,
           productCouponCode,
           shippingCouponCode,
+          attribution,
         },
       });
 
@@ -43,6 +46,23 @@ const PixPayment = ({ items, cep, shippingAddress, productCouponCode, shippingCo
       setPixCode(data.pixCode);
       setPixPayload(data.pixPayload);
       setAmount(data.amount);
+
+      // Pixel: Purchase (PIX gerado = intenção de compra confirmada)
+      // O Purchase definitivo idealmente vem via Conversion API server-side, mas disparamos client-side
+      // para captura imediata. eventID = pixCode permite dedupe.
+      try {
+        metaPixel.purchase({
+          order_id: data.orderId || data.pixCode,
+          value: data.amount,
+          currency: "BRL",
+          contents: items.map((i) => ({ id: i.product_id, quantity: i.quantity, item_price: 0 })),
+          fbclid: attribution?.fbclid,
+          gclid: attribution?.gclid,
+          source_label: attribution?.source_last,
+        });
+      } catch {
+        /* */
+      }
 
       await clearCart();
       toast.success("Pedido criado! Escaneie o QR Code para pagar.");

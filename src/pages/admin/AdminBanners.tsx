@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
+import { compressImage, compressMobileBanner } from "@/lib/imageCompression";
 
 interface BannerItem {
   url: string;
@@ -120,13 +121,14 @@ const AdminBanners = () => {
     if (!file) return;
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop();
+      const compressed = await compressImage(file);
+      const ext = compressed.name.split(".").pop();
       const path = `banners/${Date.now()}.${ext}`;
-      const { error } = await supabase.storage.from("product-images").upload(path, file);
+      const { error } = await supabase.storage.from("product-images").upload(path, compressed, { contentType: compressed.type });
       if (error) throw error;
       const { data: urlData } = supabase.storage.from("product-images").getPublicUrl(path);
       setBanners((prev) => [...prev, { ...emptyBanner, url: urlData.publicUrl }]);
-      toast.success("Imagem adicionada!");
+      toast.success(`Imagem adicionada! (${(file.size / 1024).toFixed(0)}KB → ${(compressed.size / 1024).toFixed(0)}KB)`);
     } catch (err: any) {
       toast.error("Erro no upload: " + err.message);
     } finally {
@@ -142,9 +144,10 @@ const AdminBanners = () => {
     setUploadingMobile(true);
     try {
       for (const file of Array.from(files)) {
-        const ext = file.name.split(".").pop();
+        const compressed = await compressMobileBanner(file);
+        const ext = compressed.name.split(".").pop();
         const path = `banners/mobile-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${ext}`;
-        const { error } = await supabase.storage.from("product-images").upload(path, file);
+        const { error } = await supabase.storage.from("product-images").upload(path, compressed, { contentType: compressed.type });
         if (error) throw error;
         const { data: urlData } = supabase.storage.from("product-images").getPublicUrl(path);
         setMobileSlides((prev) => [...prev, { url: urlData.publicUrl }]);
@@ -214,9 +217,10 @@ const AdminBanners = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const ext = file.name.split(".").pop();
+      const compressed = await compressImage(file);
+      const ext = compressed.name.split(".").pop();
       const path = `banners/${Date.now()}.${ext}`;
-      const { error } = await supabase.storage.from("product-images").upload(path, file);
+      const { error } = await supabase.storage.from("product-images").upload(path, compressed, { contentType: compressed.type });
       if (error) throw error;
       const { data: urlData } = supabase.storage.from("product-images").getPublicUrl(path);
       setBanners((prev) => prev.map((b, i) => (i === index ? { ...b, url: urlData.publicUrl } : b)));
@@ -231,9 +235,10 @@ const AdminBanners = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const ext = file.name.split(".").pop();
+      const compressed = await compressMobileBanner(file);
+      const ext = compressed.name.split(".").pop();
       const path = `banners/mobile-${Date.now()}.${ext}`;
-      const { error } = await supabase.storage.from("product-images").upload(path, file);
+      const { error } = await supabase.storage.from("product-images").upload(path, compressed, { contentType: compressed.type });
       if (error) throw error;
       const { data: urlData } = supabase.storage.from("product-images").getPublicUrl(path);
       setMobileSlides((prev) => prev.map((s, i) => (i === index ? { url: urlData.publicUrl } : s)));
@@ -250,9 +255,11 @@ const AdminBanners = () => {
     if (!file) return;
     setUploadingLogo(true);
     try {
-      const ext = file.name.split(".").pop();
+      // Logo: cap menor (preserva alpha PNG automaticamente)
+      const compressed = await compressImage(file, { maxDimension: 600 });
+      const ext = compressed.name.split(".").pop();
       const path = `branding/logo-${Date.now()}.${ext}`;
-      const { error } = await supabase.storage.from("product-images").upload(path, file);
+      const { error } = await supabase.storage.from("product-images").upload(path, compressed, { contentType: compressed.type });
       if (error) throw error;
       const { data: urlData } = supabase.storage.from("product-images").getPublicUrl(path);
       setLogoUrl(urlData.publicUrl);

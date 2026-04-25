@@ -88,7 +88,7 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    const { items, cep, shippingAddress, productCouponCode, shippingCouponCode } = await req.json();
+    const { items, cep, shippingAddress, productCouponCode, shippingCouponCode, attribution } = await req.json();
 
     if (!Array.isArray(items) || items.length === 0) {
       throw new Error("Items inválidos.");
@@ -243,7 +243,8 @@ serve(async (req) => {
     const code = generateOrderCode();
     const pixPayload = generatePixPayload(totalAmount, code);
 
-    // 9. Create order
+    // 9. Create order (com atribuição de tráfego)
+    const attr = attribution || {};
     const { data: order, error: orderErr } = await supabase
       .from("orders")
       .insert({
@@ -253,6 +254,16 @@ serve(async (req) => {
         payment_method: "pix",
         shipping_address: shippingAddress,
         shipping_cost: finalShipping,
+        attribution_session_id: attr.attribution_session_id || null,
+        utm_source: attr.utm_source || "",
+        utm_medium: attr.utm_medium || "",
+        utm_campaign: attr.utm_campaign || "",
+        utm_term: attr.utm_term || "",
+        utm_content: attr.utm_content || "",
+        fbclid: attr.fbclid || "",
+        gclid: attr.gclid || "",
+        source_first: attr.source_first || "",
+        source_last: attr.source_last || "",
       })
       .select("id")
       .single();

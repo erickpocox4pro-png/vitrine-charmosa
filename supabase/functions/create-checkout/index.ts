@@ -39,7 +39,7 @@ serve(async (req) => {
     }
     const customerEmail = user.email;
 
-    const { items, cep, shippingAddress, productCouponCode, shippingCouponCode } = await req.json();
+    const { items, cep, shippingAddress, productCouponCode, shippingCouponCode, attribution } = await req.json();
 
     // Validate items structure
     if (!Array.isArray(items) || items.length === 0) {
@@ -223,6 +223,17 @@ serve(async (req) => {
       cancel_url: `${siteUrl}/checkout`,
       metadata: {
         shipping_address: JSON.stringify(shippingAddress),
+        // Atribuição de tráfego — disponível no webhook pra gravar em orders
+        attribution_session_id: attribution?.attribution_session_id || "",
+        utm_source: attribution?.utm_source || "",
+        utm_medium: attribution?.utm_medium || "",
+        utm_campaign: attribution?.utm_campaign || "",
+        utm_term: attribution?.utm_term || "",
+        utm_content: attribution?.utm_content || "",
+        fbclid: attribution?.fbclid || "",
+        gclid: attribution?.gclid || "",
+        source_first: attribution?.source_first || "",
+        source_last: attribution?.source_last || "",
       },
     };
 

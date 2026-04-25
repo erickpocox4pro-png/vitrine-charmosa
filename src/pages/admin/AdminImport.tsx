@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { compressImage } from "@/lib/imageCompression";
 import {
   Upload, FileSpreadsheet, FileJson, Image, CheckCircle2, XCircle,
   AlertTriangle, Loader2, ArrowRight, RotateCcw, Download, Eye,
@@ -257,13 +258,19 @@ const AdminImport = () => {
 
     for (let i = 0; i < imageFiles.length; i++) {
       const file = imageFiles[i];
+      const compressed = await compressImage(file);
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-      const path = `imports/${timestamp}/${safeName}`;
+      // Mantém safeName como chave, mas troca extensão p/ casar com o tipo após compressão
+      const compressedExt = compressed.name.split(".").pop();
+      const safeNameNoExt = safeName.replace(/\.[^.]+$/, "");
+      const storedName = `${safeNameNoExt}.${compressedExt}`;
+      const path = `imports/${timestamp}/${storedName}`;
 
       try {
-        const { error } = await supabase.storage.from("product-images").upload(path, file, {
+        const { error } = await supabase.storage.from("product-images").upload(path, compressed, {
           cacheControl: "3600",
           upsert: true,
+          contentType: compressed.type,
         });
         if (error) {
           console.error(`Upload failed for ${file.name}:`, error.message);

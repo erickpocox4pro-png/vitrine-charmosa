@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { compressImage } from "@/lib/imageCompression";
 import {
   ImageIcon, Upload, Trash2, Link2, Check, X, Search,
   Loader2, CheckSquare, Square, Package,
@@ -102,12 +103,14 @@ const AdminGallery = () => {
 
     for (const file of Array.from(files)) {
       if (!file.type.startsWith("image/")) continue;
-      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const compressed = await compressImage(file);
+      const safeName = compressed.name.replace(/[^a-zA-Z0-9._-]/g, "_");
       const path = `gallery/${Date.now()}_${safeName}`;
       try {
-        const { error } = await supabase.storage.from("product-images").upload(path, file, {
+        const { error } = await supabase.storage.from("product-images").upload(path, compressed, {
           cacheControl: "3600",
           upsert: true,
+          contentType: compressed.type,
         });
         if (!error) count++;
       } catch (err) {

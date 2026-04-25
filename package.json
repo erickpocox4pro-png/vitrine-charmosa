@@ -12,7 +12,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "optimize:assets": "node scripts/optimize-assets.mjs"
+    "optimize:assets": "node scripts/optimize-assets.mjs",
+    "recompress:storage": "node scripts/recompress-storage.mjs",
+    "recompress:storage:dry": "node scripts/recompress-storage.mjs --dry-run"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

@@ -15,6 +15,7 @@ import Header from "@/components/store/Header";
 import Footer from "@/components/store/Footer";
 import SEO, { SITE_URL, SITE_NAME, DEFAULT_DESCRIPTION } from "@/components/SEO";
 import { STORE_COLOR_PRESETS } from "@/data/colorPresets";
+import { metaPixel } from "@/lib/metaPixel";
 
 const resolveColorToCSS = (color: string): string => {
   if (color.startsWith("#")) return color;
@@ -139,6 +140,18 @@ const ProductPage = () => {
   useEffect(() => {
     setSelectedImage(0);
   }, [selectedVariant]);
+
+  // Pixel: ViewContent quando o produto carrega
+  useEffect(() => {
+    if (product?.id && product?.name) {
+      metaPixel.viewContent({
+        product_id: product.id,
+        name: product.name,
+        price: Number(product.price) || 0,
+        category: (product as any).category || undefined,
+      });
+    }
+  }, [product?.id]);
 
   // Determine if product uses estampa or color (mutually exclusive)
   const hasEstampas = useMemo(() => {

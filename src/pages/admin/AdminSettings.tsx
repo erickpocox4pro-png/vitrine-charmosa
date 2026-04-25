@@ -6,7 +6,7 @@ import {
   Settings, Truck, Plus, Pencil, Trash2, Save, X, MapPin,
   DollarSign, Clock, Check, Package, AlertTriangle, Store,
   CreditCard, QrCode, Phone, Mail, Globe, Instagram, Facebook,
-  Lock, Unlock, ShieldAlert,
+  Lock, Unlock, ShieldAlert, Target,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,7 +68,23 @@ const defaultPaymentConfig: PaymentConfig = {
   card_enabled: true, boleto_enabled: false,
 };
 
-type Tab = "store" | "payments" | "shipping";
+type Tab = "store" | "payments" | "shipping" | "pixel";
+
+interface PixelSettings {
+  enabled: boolean;
+  pixel_id: string;
+  google_ads_id: string;
+  google_ads_purchase_label: string;
+  test_event_code: string;
+}
+
+const defaultPixelSettings: PixelSettings = {
+  enabled: true,
+  pixel_id: "",
+  google_ads_id: "",
+  google_ads_purchase_label: "",
+  test_event_code: "",
+};
 
 /* ── Inline Price Editor ── */
 const InlinePrice = ({ rule, onSave }: { rule: ShippingRule; onSave: (price: number) => void }) => {
@@ -225,6 +241,41 @@ const AdminSettings = () => {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // ── Pixel & Tracking ──
+  const [pixelSettings, setPixelSettings] = useState<PixelSettings>(defaultPixelSettings);
+  const { data: pixelData } = useQuery({
+    queryKey: ["site-settings", "meta_pixel_settings"],
+    queryFn: async () => {
+      const { data } = await supabase.from("site_settings").select("value").eq("key", "meta_pixel_settings").maybeSingle();
+      return data?.value as unknown as PixelSettings | null;
+    },
+  });
+  useEffect(() => { if (pixelData) setPixelSettings({ ...defaultPixelSettings, ...pixelData }); }, [pixelData]);
+
+  const savePixelMutation = useMutation({
+    mutationFn: async (cfg: PixelSettings) => {
+      // Sanitiza pixel_id (só dígitos)
+      const sanitized: PixelSettings = {
+        ...cfg,
+        pixel_id: cfg.pixel_id.replace(/\D/g, ""),
+        google_ads_id: cfg.google_ads_id.trim(),
+      };
+      const { data: existing } = await supabase.from("site_settings").select("id").eq("key", "meta_pixel_settings").maybeSingle();
+      if (existing) {
+        const { error } = await supabase.from("site_settings").update({ value: sanitized as any }).eq("key", "meta_pixel_settings");
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("site_settings").insert({ key: "meta_pixel_settings", value: sanitized as any });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["site-settings"] });
+      toast.success("Pixel & tracking salvos! Recarregue a loja para ativar.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   // ── Shipping Rules ──
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<ShippingRule>>({});
@@ -290,6 +341,7 @@ const AdminSettings = () => {
     { id: "store", label: "Dados da Loja", icon: Store },
     { id: "payments", label: "Pagamentos", icon: CreditCard },
     { id: "shipping", label: "Frete & Entrega", icon: Truck },
+    { id: "pixel", label: "Pixel & Tracking", icon: Target },
   ];
 
   return (
@@ -616,6 +668,127 @@ const AdminSettings = () => {
                 As regras são avaliadas pelos primeiros 5 dígitos do CEP. A primeira regra que casar será usada. Desative uma regra para impedir envios sem removê-la.
               </p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ TAB: Pixel & Tracking ═══ */}
+      {activeTab === "pixel" && (
+        <div className="space-y-4 max-w-2xl">
+          {/* Status / toggle */}
+          <div className="glass-card p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                <Target size={14} className="text-primary" /> Pixel do Facebook (Meta)
+              </h3>
+              <Switch
+                checked={pixelSettings.enabled}
+                onCheckedChange={(v) => setPixelSettings({ ...pixelSettings, enabled: v })}
+              />
+            </div>
+            <p className="text-[11px] text-muted-foreground mb-4">
+              Quando ativado, o Pixel rastreia visitas, visualizações de produto, adições ao carrinho,
+              checkouts iniciados e compras. Esses dados aparecem no Gerenciador de Eventos da Meta e
+              alimentam suas campanhas no Facebook Ads.
+            </p>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-[11px] font-medium text-foreground mb-1 block">
+                  Pixel ID do Facebook
+                </label>
+                <Input
+                  value={pixelSettings.pixel_id}
+                  onChange={(e) => setPixelSettings({ ...pixelSettings, pixel_id: e.target.value })}
+                  placeholder="Ex: 799756736248413"
+                  className="h-9 text-sm font-mono"
+                  maxLength={20}
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  15–16 dígitos. Encontrado em business.facebook.com → Gerenciador de Eventos →
+                  ID do conjunto de dados do Pixel.
+                </p>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-medium text-foreground mb-1 block">
+                  Test Event Code (opcional)
+                </label>
+                <Input
+                  value={pixelSettings.test_event_code}
+                  onChange={(e) => setPixelSettings({ ...pixelSettings, test_event_code: e.target.value })}
+                  placeholder="Ex: TEST12345"
+                  className="h-9 text-sm font-mono"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Use no Gerenciador de Eventos → "Testar eventos" pra validar disparos. Remova depois.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Google Ads */}
+          <div className="glass-card p-5">
+            <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-1.5">
+              <Globe size={14} className="text-primary" /> Google Ads / Analytics (opcional)
+            </h3>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-[11px] font-medium text-foreground mb-1 block">
+                  ID do Google Ads / GA4
+                </label>
+                <Input
+                  value={pixelSettings.google_ads_id}
+                  onChange={(e) => setPixelSettings({ ...pixelSettings, google_ads_id: e.target.value })}
+                  placeholder="Ex: AW-1234567890 ou G-XXXXXXXXXX"
+                  className="h-9 text-sm font-mono"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-foreground mb-1 block">
+                  Label de Conversão "Purchase"
+                </label>
+                <Input
+                  value={pixelSettings.google_ads_purchase_label}
+                  onChange={(e) => setPixelSettings({ ...pixelSettings, google_ads_purchase_label: e.target.value })}
+                  placeholder="Ex: abcDEF12"
+                  className="h-9 text-sm font-mono"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Eventos disparados */}
+          <div className="glass-card p-5 !bg-secondary/20">
+            <h3 className="text-sm font-semibold text-foreground mb-3">Eventos rastreados automaticamente</h3>
+            <ul className="space-y-1.5 text-[11px] text-muted-foreground">
+              <li>✓ <b>PageView</b> — toda navegação na loja</li>
+              <li>✓ <b>ViewContent</b> — visualização de produto</li>
+              <li>✓ <b>AddToCart</b> — produto adicionado ao carrinho</li>
+              <li>✓ <b>InitiateCheckout</b> — entrada no checkout (use pra remarketing de carrinho abandonado)</li>
+              <li>✓ <b>Lead</b> — cliente preencheu nome/email/CEP</li>
+              <li>✓ <b>Purchase</b> — pedido criado (PIX gerado ou Stripe pago)</li>
+            </ul>
+            <p className="text-[10px] text-muted-foreground mt-3 italic">
+              Eventos também são gravados em <code>conversion_events</code> no Supabase como fallback
+              imune a ad blockers — você sempre tem os dados, mesmo que o Pixel seja bloqueado.
+            </p>
+          </div>
+
+          {/* Test instructions */}
+          <div className="glass-card p-4 border-l-2 border-primary !bg-primary/5">
+            <p className="text-[11px] text-foreground">
+              <b>Como testar:</b> depois de salvar, abre a loja em aba anônima, navega num produto,
+              adiciona ao carrinho, vai pro checkout. No Gerenciador de Eventos da Meta → "Testar eventos"
+              você deve ver os eventos chegando em ~30s.
+            </p>
+          </div>
+
+          <div className="flex justify-end">
+            <Button onClick={() => savePixelMutation.mutate(pixelSettings)} className="gap-1.5">
+              <Save size={14} /> Salvar Pixel & Tracking
+            </Button>
           </div>
         </div>
       )}

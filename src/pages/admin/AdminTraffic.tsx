@@ -1,17 +1,20 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { BarChart3, Globe, TrendingUp, Users, Calendar, ExternalLink } from "lucide-react";
+import { BarChart3, Globe, TrendingUp, Users, Calendar, ExternalLink, DollarSign, ShoppingBag, Zap } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
-const SOURCE_LABELS: Record<string, { label: string; color: string }> = {
+const SOURCE_LABELS: Record<string, { label: string; color: string; paid?: boolean }> = {
   direto: { label: "Acesso Direto", color: "hsl(var(--primary))" },
   google: { label: "Google (Orgânico)", color: "#4285F4" },
-  "google-ads": { label: "Google Ads", color: "#FBBC05" },
+  "google-ads": { label: "Google Ads 💰", color: "#FBBC05", paid: true },
   instagram: { label: "Instagram", color: "#E1306C" },
   facebook: { label: "Facebook", color: "#1877F2" },
+  "facebook-ads": { label: "Facebook Ads 💰", color: "#1877F2", paid: true },
+  "instagram-ads": { label: "Instagram Ads 💰", color: "#E1306C", paid: true },
   whatsapp: { label: "WhatsApp", color: "#25D366" },
   tiktok: { label: "TikTok", color: "#010101" },
+  "tiktok-ads": { label: "TikTok Ads 💰", color: "#010101", paid: true },
   twitter: { label: "Twitter/X", color: "#1DA1F2" },
   pinterest: { label: "Pinterest", color: "#E60023" },
   youtube: { label: "YouTube", color: "#FF0000" },
@@ -40,8 +43,47 @@ const AdminTraffic = () => {
         .select("*")
         .gte("created_at", since)
         .order("created_at", { ascending: false })
-        .limit(1000);
+        .limit(2000);
       if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Pedidos com atribuição (pra calcular taxa de conversão real por fonte)
+  const { data: orders = [] } = useQuery({
+    queryKey: ["admin-traffic-orders", period],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("id, total, status, source_first, source_last, utm_source, utm_campaign, fbclid, gclid, created_at")
+        .gte("created_at", since);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Sessões (pra contar leads únicos vs visitas)
+  const { data: sessions = [] } = useQuery({
+    queryKey: ["admin-traffic-sessions", period],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("attribution_sessions")
+        .select("session_id, first_source, last_source, first_seen_at")
+        .gte("first_seen_at", since)
+        .limit(2000);
+      return data || [];
+    },
+  });
+
+  // Eventos de conversão (ViewContent, AddToCart, InitiateCheckout, Purchase)
+  const { data: convEvents = [] } = useQuery({
+    queryKey: ["admin-traffic-events", period],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("conversion_events")
+        .select("event_name, event_value, source_label, session_id, created_at")
+        .gte("created_at", since)
+        .limit(5000);
       return data || [];
     },
   });
@@ -131,6 +173,86 @@ const AdminTraffic = () => {
       .map(([name, count]) => ({ name, count }));
   }, [visits]);
 
+  // Pago vs orgânico
+  const paidVsOrganic = useMemo(() => {
+    let paid = 0, organic = 0;
+    for (const v of visits as any[]) {
+      const lbl = (v.source_label || "").toString();
+      if (SOURCE_LABELS[lbl]?.paid || v.fbclid || v.gclid) paid++;
+      else organic++;
+    }
+    return { paid, organic, total: paid + organic };
+  }, [visits]);
+
+  // Funil global
+  const funnel = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const e of convEvents as any[]) {
+      counts[e.event_name] = (counts[e.event_name] || 0) + 1;
+    }
+    const visit = visits.length;
+    const view = counts.ViewContent || 0;
+    const cart = counts.AddToCart || 0;
+    const checkout = counts.InitiateCheckout || 0;
+    const purchase = orders.length;
+    return [
+      { stage: "Visitas", count: visit, color: "#6B7280" },
+      { stage: "Viu produto", count: view, color: "#3B82F6" },
+      { stage: "Adicionou ao carrinho", count: cart, color: "#F59E0B" },
+      { stage: "Iniciou checkout", count: checkout, color: "#EC4899" },
+      { stage: "Comprou", count: purchase, color: "#10B981" },
+    ];
+  }, [convEvents, visits, orders]);
+
+  // Conversão por fonte (first-touch — atribui venda à origem original)
+  const conversionBySource = useMemo(() => {
+    // visitas únicas por fonte (sessões)
+    const sessionsBySource: Record<string, number> = {};
+    for (const s of sessions as any[]) {
+      const src = s.first_source || "direto";
+      sessionsBySource[src] = (sessionsBySource[src] || 0) + 1;
+    }
+    // pedidos por fonte (first-touch fallback p/ last)
+    const ordersBySource: Record<string, { count: number; revenue: number }> = {};
+    for (const o of orders as any[]) {
+      const src = (o.source_first || o.source_last || "direto") as string;
+      if (!ordersBySource[src]) ordersBySource[src] = { count: 0, revenue: 0 };
+      ordersBySource[src].count++;
+      ordersBySource[src].revenue += Number(o.total) || 0;
+    }
+    const allKeys = new Set([...Object.keys(sessionsBySource), ...Object.keys(ordersBySource)]);
+    return Array.from(allKeys)
+      .map((src) => {
+        const sess = sessionsBySource[src] || 0;
+        const ord = ordersBySource[src]?.count || 0;
+        const rev = ordersBySource[src]?.revenue || 0;
+        return {
+          key: src,
+          label: SOURCE_LABELS[src]?.label || src,
+          color: SOURCE_LABELS[src]?.color || "#6B7280",
+          sessions: sess,
+          orders: ord,
+          revenue: rev,
+          conversion: sess > 0 ? (ord / sess) * 100 : 0,
+        };
+      })
+      .filter((r) => r.sessions > 0 || r.orders > 0)
+      .sort((a, b) => b.revenue - a.revenue || b.orders - a.orders || b.sessions - a.sessions);
+  }, [sessions, orders]);
+
+  // Carrinhos abandonados (InitiateCheckout sem Purchase)
+  const abandoned = useMemo(() => {
+    const checkoutSessions = new Set(
+      (convEvents as any[]).filter((e) => e.event_name === "InitiateCheckout").map((e) => e.session_id).filter(Boolean)
+    );
+    const purchasedSessions = new Set(
+      (convEvents as any[]).filter((e) => e.event_name === "Purchase").map((e) => e.session_id).filter(Boolean)
+    );
+    let abandonedCount = 0;
+    checkoutSessions.forEach((s) => { if (!purchasedSessions.has(s)) abandonedCount++; });
+    return { initiated: checkoutSessions.size, abandoned: abandonedCount, completed: purchasedSessions.size };
+  }, [convEvents]);
+
   return (
     <div>
       {/* Header */}
@@ -171,39 +293,132 @@ const AdminTraffic = () => {
         </div>
       ) : (
         <>
-          {/* Summary Cards */}
+          {/* Summary Cards — agora com vendas e taxa de conversão real */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
             <div className="bg-card border border-border rounded-xl p-4">
               <div className="flex items-center gap-2 text-muted-foreground mb-1">
                 <TrendingUp size={14} />
-                <span className="font-body text-[11px] uppercase tracking-wider font-semibold">Total de Visitas</span>
+                <span className="font-body text-[11px] uppercase tracking-wider font-semibold">Visitas</span>
               </div>
               <p className="font-body text-2xl font-bold text-foreground">{visits.length}</p>
+              <p className="font-body text-[10px] text-muted-foreground mt-0.5">{uniqueSessions} sessões únicas</p>
             </div>
             <div className="bg-card border border-border rounded-xl p-4">
               <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <Users size={14} />
-                <span className="font-body text-[11px] uppercase tracking-wider font-semibold">Sessões Únicas</span>
+                <ShoppingBag size={14} />
+                <span className="font-body text-[11px] uppercase tracking-wider font-semibold">Pedidos</span>
               </div>
-              <p className="font-body text-2xl font-bold text-foreground">{uniqueSessions}</p>
+              <p className="font-body text-2xl font-bold text-foreground">{orders.length}</p>
+              <p className="font-body text-[10px] text-muted-foreground mt-0.5">
+                {uniqueSessions > 0 ? ((orders.length / uniqueSessions) * 100).toFixed(2) : "0"}% de conversão
+              </p>
             </div>
             <div className="bg-card border border-border rounded-xl p-4">
               <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <Globe size={14} />
-                <span className="font-body text-[11px] uppercase tracking-wider font-semibold">Fontes</span>
-              </div>
-              <p className="font-body text-2xl font-bold text-foreground">{sourceStats.length}</p>
-            </div>
-            <div className="bg-card border border-border rounded-xl p-4">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <Calendar size={14} />
-                <span className="font-body text-[11px] uppercase tracking-wider font-semibold">Média/Dia</span>
+                <DollarSign size={14} />
+                <span className="font-body text-[11px] uppercase tracking-wider font-semibold">Receita</span>
               </div>
               <p className="font-body text-2xl font-bold text-foreground">
-                {periodDays > 0 ? (visits.length / periodDays).toFixed(1) : 0}
+                R$ {orders.reduce((s: number, o: any) => s + (Number(o.total) || 0), 0).toFixed(0)}
+              </p>
+              <p className="font-body text-[10px] text-muted-foreground mt-0.5">
+                Ticket médio R$ {orders.length > 0 ? (orders.reduce((s: number, o: any) => s + (Number(o.total) || 0), 0) / orders.length).toFixed(0) : "0"}
+              </p>
+            </div>
+            <div className="bg-card border border-border rounded-xl p-4">
+              <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                <Zap size={14} className="text-amber-500" />
+                <span className="font-body text-[11px] uppercase tracking-wider font-semibold">Tráfego Pago</span>
+              </div>
+              <p className="font-body text-2xl font-bold text-foreground">{paidVsOrganic.paid}</p>
+              <p className="font-body text-[10px] text-muted-foreground mt-0.5">
+                {paidVsOrganic.total > 0 ? ((paidVsOrganic.paid / paidVsOrganic.total) * 100).toFixed(0) : "0"}% das visitas
               </p>
             </div>
           </div>
+
+          {/* Funil de conversão */}
+          <div className="bg-card border border-border rounded-xl p-4 mb-6">
+            <h3 className="font-body text-sm font-semibold text-foreground mb-4">Funil de Conversão</h3>
+            <div className="space-y-2">
+              {funnel.map((step, i) => {
+                const top = funnel[0].count || 1;
+                const pctTop = (step.count / top) * 100;
+                const prev = i > 0 ? funnel[i - 1].count : step.count;
+                const dropoff = i > 0 && prev > 0 ? ((prev - step.count) / prev) * 100 : 0;
+                return (
+                  <div key={step.stage}>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="font-body text-xs font-medium text-foreground">{step.stage}</span>
+                      <span className="font-body text-xs text-muted-foreground">
+                        {step.count}
+                        {i > 0 && dropoff > 0 && (
+                          <span className="ml-2 text-destructive/70">−{dropoff.toFixed(0)}%</span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="h-3 bg-secondary rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${pctTop}%`, backgroundColor: step.color, minWidth: step.count > 0 ? "4px" : "0" }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {abandoned.initiated > 0 && (
+              <div className="mt-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                <p className="font-body text-[11px] text-foreground">
+                  <b>🛒 Carrinhos abandonados:</b> {abandoned.abandoned} de {abandoned.initiated} (
+                  {((abandoned.abandoned / abandoned.initiated) * 100).toFixed(0)}%) iniciaram checkout
+                  mas não compraram. Use esses dados pra rodar remarketing no Facebook Ads.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Conversão por fonte (a tabela mais importante) */}
+          {conversionBySource.length > 0 && (
+            <div className="bg-card border border-border rounded-xl p-4 mb-6 overflow-x-auto">
+              <h3 className="font-body text-sm font-semibold text-foreground mb-3">Performance por Fonte (first-touch)</h3>
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-muted-foreground border-b border-border/50">
+                    <th className="text-left font-body font-semibold py-2">Fonte</th>
+                    <th className="text-right font-body font-semibold py-2">Sessões</th>
+                    <th className="text-right font-body font-semibold py-2">Pedidos</th>
+                    <th className="text-right font-body font-semibold py-2">Conv.</th>
+                    <th className="text-right font-body font-semibold py-2">Receita</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {conversionBySource.map((r) => (
+                    <tr key={r.key} className="border-b border-border/30 last:border-0">
+                      <td className="py-2">
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: r.color }} />
+                          <span className="font-body font-medium text-foreground">{r.label}</span>
+                        </span>
+                      </td>
+                      <td className="text-right font-body text-muted-foreground py-2">{r.sessions}</td>
+                      <td className="text-right font-body text-foreground font-semibold py-2">{r.orders}</td>
+                      <td className={`text-right font-body py-2 font-semibold ${r.conversion >= 2 ? "text-success" : r.conversion >= 1 ? "text-foreground" : "text-muted-foreground"}`}>
+                        {r.conversion.toFixed(2)}%
+                      </td>
+                      <td className="text-right font-body text-foreground font-semibold py-2">
+                        R$ {r.revenue.toFixed(0)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="text-[10px] text-muted-foreground mt-3 italic">
+                Atribuição first-touch: o pedido é creditado à fonte que trouxe o cliente pela primeira vez (até 30 dias).
+                Use isso pra decidir onde investir mais em anúncios.
+              </p>
+            </div>
+          )}
 
           {/* Daily chart */}
           {dailyStats.length > 0 && (

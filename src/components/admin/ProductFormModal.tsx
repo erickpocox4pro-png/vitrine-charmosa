@@ -12,6 +12,7 @@ const resolveColorToCSS = (color: string): string => {
 };
 import { toast } from "sonner";
 import { logAuditAction } from "@/lib/auditLog";
+import { compressImage } from "@/lib/imageCompression";
 
 interface Props {
   product: any | null;
@@ -67,9 +68,10 @@ const VariantCard = ({ variant, productId, onDelete, queryClient }: {
     if (remaining <= 0) { toast.error("Máximo de 3 imagens por variante."); e.target.value = ""; return; }
     const toUpload = Array.from(files).slice(0, remaining);
     for (const file of toUpload) {
-      const ext = file.name.split(".").pop();
+      const compressed = await compressImage(file);
+      const ext = compressed.name.split(".").pop();
       const path = `variants/${variant.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await supabase.storage.from("product-images").upload(path, file);
+      const { error } = await supabase.storage.from("product-images").upload(path, compressed, { contentType: compressed.type });
       if (error) continue;
       const { data: { publicUrl } } = supabase.storage.from("product-images").getPublicUrl(path);
       await supabase.from("product_images").insert({
@@ -464,9 +466,10 @@ const ProductFormModal = ({ product, onClose }: Props) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
-    const ext = file.name.split(".").pop();
+    const compressed = await compressImage(file);
+    const ext = compressed.name.split(".").pop();
     const path = `${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("product-images").upload(path, file);
+    const { error } = await supabase.storage.from("product-images").upload(path, compressed, { contentType: compressed.type });
     if (error) { toast.error("Erro ao enviar imagem."); setUploading(false); return; }
     const { data: { publicUrl } } = supabase.storage.from("product-images").getPublicUrl(path);
     setImageUrl(publicUrl);
@@ -483,9 +486,10 @@ const ProductFormModal = ({ product, onClose }: Props) => {
     const toUpload = Array.from(files).slice(0, remaining);
     const newUrls: string[] = [];
     for (const file of toUpload) {
-      const ext = file.name.split(".").pop();
+      const compressed = await compressImage(file);
+      const ext = compressed.name.split(".").pop();
       const path = `extras/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await supabase.storage.from("product-images").upload(path, file);
+      const { error } = await supabase.storage.from("product-images").upload(path, compressed, { contentType: compressed.type });
       if (error) continue;
       const { data: { publicUrl } } = supabase.storage.from("product-images").getPublicUrl(path);
       newUrls.push(publicUrl);

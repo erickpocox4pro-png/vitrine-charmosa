@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Paintbrush, Type, Palette, Image, Save, Upload, Trash2, Clock, Zap, Plus, X } from "lucide-react";
 import { STORE_COLOR_PRESETS } from "@/data/colorPresets";
+import { compressImage } from "@/lib/imageCompression";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -209,9 +210,10 @@ const AdminDesigner = () => {
     if (!file) return;
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop();
+      const compressed = await compressImage(file);
+      const ext = compressed.name.split(".").pop();
       const path = `banners/${Date.now()}.${ext}`;
-      const { error } = await supabase.storage.from("product-images").upload(path, file);
+      const { error } = await supabase.storage.from("product-images").upload(path, compressed, { contentType: compressed.type });
       if (error) throw error;
       const { data: urlData } = supabase.storage.from("product-images").getPublicUrl(path);
       setBannerImages((prev) => [...prev, urlData.publicUrl]);

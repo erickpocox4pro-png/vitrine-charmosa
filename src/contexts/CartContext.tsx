@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
+import { metaPixel } from "@/lib/metaPixel";
 
 export interface CartProduct {
   id: string;
@@ -119,6 +120,25 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .insert(insertData);
     }
     await fetchCart();
+
+    // Pixel: AddToCart
+    try {
+      const { data: prod } = await supabase
+        .from("products")
+        .select("id, name, price")
+        .eq("id", productId)
+        .maybeSingle();
+      if (prod) {
+        metaPixel.addToCart({
+          product_id: prod.id,
+          name: prod.name,
+          price: Number(prod.price) || 0,
+          quantity: 1,
+        });
+      }
+    } catch {
+      /* silent */
+    }
   }, [items, fetchCart]);
 
   const removeFromCart = useCallback(async (itemId: string) => {
