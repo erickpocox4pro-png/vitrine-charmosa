@@ -120,7 +120,12 @@ async function main() {
         document.documentElement.setAttribute("data-prerendered", "true");
       });
 
-      const html = await page.content();
+      let html = await page.content();
+
+      // Remove scripts do Facebook injetados pelo fbevents.js durante o prerender
+      // (signals/config/... e fbevents.js externo). O snippet inline em index.html
+      // reinjeta fbevents.js no runtime, então não precisamos persistir essas tags.
+      html = html.replace(/<script[^>]*src="https:\/\/connect\.facebook\.net[^"]*"[^>]*><\/script>/g, "");
 
       const filePath =
         route === "/"
