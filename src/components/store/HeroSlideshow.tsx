@@ -13,7 +13,7 @@ const defaultSlides = [hero1, hero2, hero3];
 const HeroSlideshow = () => {
   const isMobile = useIsMobile();
 
-  const { data: settings } = useQuery({
+  const { data: settings, isLoading, isError } = useQuery({
     queryKey: ["site-settings-slideshow"],
     queryFn: async () => {
       const { data } = await supabase
@@ -31,9 +31,19 @@ const HeroSlideshow = () => {
     staleTime: 60000,
   });
 
-  const desktopSlides = settings?.images?.length ? settings.images : defaultSlides;
-  const mobileSlides = settings?.mobileSlides?.length
-    ? settings.mobileSlides.map((s) => s.url)
+  // Só usa o fallback bundlado se a query terminou e não veio NADA do banco.
+  // Enquanto carrega, mostra placeholder neutro pra não piscar imagens stock.
+  const settingsResolved = !isLoading;
+  const hasConfiguredDesktop = !!settings?.images?.length;
+  const hasConfiguredMobile = !!settings?.mobileSlides?.length;
+
+  const desktopSlides = hasConfiguredDesktop
+    ? settings!.images!
+    : settingsResolved
+    ? defaultSlides
+    : [];
+  const mobileSlides = hasConfiguredMobile
+    ? settings!.mobileSlides!.map((s) => s.url)
     : null;
 
   const slides = isMobile && mobileSlides ? mobileSlides : desktopSlides;
@@ -58,6 +68,16 @@ const HeroSlideshow = () => {
     };
   }, [emblaApi]);
 
+  // Placeholder enquanto a query do Supabase ainda não resolveu — evita flash
+  // dos banners stock bundlados (Fashion Bands) antes dos reais carregarem.
+  if (slides.length === 0) {
+    return (
+      <section className="relative w-full">
+        <div className="w-full overflow-hidden aspect-[9/16] md:aspect-[16/9] bg-secondary/30" />
+      </section>
+    );
+  }
+
   return (
     <section className="relative w-full">
       <div ref={emblaRef} className="overflow-hidden">
@@ -70,6 +90,10 @@ const HeroSlideshow = () => {
                   alt={`Banner ${index + 1}`}
                   className="h-full w-full object-cover"
                   loading={index === 0 ? "eager" : "lazy"}
+                  fetchPriority={index === 0 ? "high" : "low"}
+                  decoding={index === 0 ? "sync" : "async"}
+                  width={isMobile ? 720 : 1920}
+                  height={isMobile ? 1280 : 1080}
                   draggable={false}
                 />
               </div>

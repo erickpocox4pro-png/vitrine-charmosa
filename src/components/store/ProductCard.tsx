@@ -1,5 +1,4 @@
 import { ShoppingBag } from "lucide-react";
-import { motion } from "framer-motion";
 import type { Product } from "@/data/products";
 import { getProductImage } from "@/data/products";
 import { useCart } from "@/contexts/CartContext";
@@ -32,11 +31,7 @@ const ProductCard = ({ product }: Props) => {
     : 0;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-40px" }}
-      transition={{ duration: 0.4 }}
+    <div
       className="group cursor-pointer"
       onClick={() => navigate(productUrl)}
     >
@@ -46,6 +41,9 @@ const ProductCard = ({ product }: Props) => {
           alt={product.name}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           loading="lazy"
+          decoding="async"
+          width={400}
+          height={533}
         />
         {/* Badges */}
         <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5">
@@ -86,7 +84,7 @@ const ProductCard = ({ product }: Props) => {
           )}
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 };
 
