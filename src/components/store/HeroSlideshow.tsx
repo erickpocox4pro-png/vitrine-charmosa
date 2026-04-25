@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
+import { Helmet } from "react-helmet-async";
 import useEmblaCarousel from "embla-carousel-react";
 import Autoplay from "embla-carousel-autoplay";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useIsMobile } from "@/hooks/use-mobile";
 import hero1 from "@/assets/hero-1.jpg";
 import hero2 from "@/assets/hero-2.jpg";
 import hero3 from "@/assets/hero-3.jpg";
@@ -12,7 +12,6 @@ import hero2Webp from "@/assets/hero-2.webp";
 import hero3Webp from "@/assets/hero-3.webp";
 
 const defaultSlides = [hero1, hero2, hero3];
-const defaultSlidesWebp = [hero1Webp, hero2Webp, hero3Webp];
 
 // Map JPG bundlado -> WebP irmão (só pros defaults; URLs do admin não tem webp)
 const bundledWebpMap: Record<string, string> = {
@@ -21,10 +20,10 @@ const bundledWebpMap: Record<string, string> = {
   [hero3]: hero3Webp,
 };
 
-const HeroSlideshow = () => {
-  const isMobile = useIsMobile();
+const MOBILE_MEDIA = "(max-width: 767px)";
 
-  const { data: settings, isLoading, isError } = useQuery({
+const HeroSlideshow = () => {
+  const { data: settings, isLoading } = useQuery({
     queryKey: ["site-settings-slideshow"],
     queryFn: async () => {
       const { data } = await supabase
@@ -53,11 +52,18 @@ const HeroSlideshow = () => {
     : settingsResolved
     ? defaultSlides
     : [];
-  const mobileSlides = hasConfiguredMobile
+  const mobileSlideUrls = hasConfiguredMobile
     ? settings!.mobileSlides!.map((s) => s.url)
     : null;
 
-  const slides = isMobile && mobileSlides ? mobileSlides : desktopSlides;
+  // Cada slide tem um par (desktop, mobile?). Renderizamos AMBOS no <picture>
+  // com <source media> — browser escolhe sem necessidade de JS detectar viewport.
+  // Isso elimina hydration mismatch e o swap pos-hidratacao que matava o LCP mobile.
+  const slides = desktopSlides.map((desktop, i) => ({
+    desktop,
+    mobile: mobileSlideUrls?.[i] ?? null,
+  }));
+
   const duration = settings?.duration || 4000;
 
   const [emblaRef, emblaApi] = useEmblaCarousel(
@@ -89,32 +95,64 @@ const HeroSlideshow = () => {
     );
   }
 
+  // Preload do PRIMEIRO slide (LCP element). Browser comeca download antes do
+  // JS rodar — melhora LCP em segundos. media= garante que so mobile baixa
+  // o mobile e so desktop baixa o desktop.
+  const firstSlide = slides[0];
+
   return (
     <section className="relative w-full">
+      {firstSlide && (
+        <Helmet>
+          {firstSlide.mobile && (
+            <link
+              rel="preload"
+              as="image"
+              href={firstSlide.mobile}
+              media={MOBILE_MEDIA}
+              // @ts-expect-error fetchpriority lowercase é o atributo HTML real
+              fetchpriority="high"
+            />
+          )}
+          <link
+            rel="preload"
+            as="image"
+            href={firstSlide.desktop}
+            media={firstSlide.mobile ? "(min-width: 768px)" : "all"}
+            // @ts-expect-error fetchpriority lowercase é o atributo HTML real
+            fetchpriority="high"
+          />
+        </Helmet>
+      )}
       <div ref={emblaRef} className="overflow-hidden">
         <div className="flex">
-          {slides.map((slide, index) => (
-            <div key={`${slide}-${index}`} className="min-w-0 shrink-0 grow-0 basis-full">
-              <div className="relative w-full overflow-hidden aspect-[9/16] md:aspect-[16/9]">
-                <picture>
-                  {bundledWebpMap[slide] && (
-                    <source srcSet={bundledWebpMap[slide]} type="image/webp" />
-                  )}
-                  <img
-                    src={slide}
-                    alt={`Banner ${index + 1}`}
-                    className="h-full w-full object-cover"
-                    loading={index === 0 ? "eager" : "lazy"}
-                    fetchPriority={index === 0 ? "high" : "low"}
-                    decoding={index === 0 ? "sync" : "async"}
-                    width={isMobile ? 720 : 1920}
-                    height={isMobile ? 1280 : 1080}
-                    draggable={false}
-                  />
-                </picture>
+          {slides.map((slide, index) => {
+            const webp = bundledWebpMap[slide.desktop];
+            return (
+              <div key={`${slide.desktop}-${index}`} className="min-w-0 shrink-0 grow-0 basis-full">
+                <div className="relative w-full overflow-hidden aspect-[9/16] md:aspect-[16/9]">
+                  <picture>
+                    {/* Mobile-specific URL (admin-uploaded) tem prioridade no breakpoint mobile */}
+                    {slide.mobile && (
+                      <source media={MOBILE_MEDIA} srcSet={slide.mobile} />
+                    )}
+                    {webp && <source srcSet={webp} type="image/webp" />}
+                    <img
+                      src={slide.desktop}
+                      alt={`Banner ${index + 1}`}
+                      className="h-full w-full object-cover"
+                      loading={index === 0 ? "eager" : "lazy"}
+                      fetchPriority={index === 0 ? "high" : "low"}
+                      decoding={index === 0 ? "sync" : "async"}
+                      width={1920}
+                      height={1080}
+                      draggable={false}
+                    />
+                  </picture>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

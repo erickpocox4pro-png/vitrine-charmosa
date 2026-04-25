@@ -1,6 +1,5 @@
 import { useProducts } from "@/data/products";
 import ProductCard from "./ProductCard";
-import { motion } from "framer-motion";
 import { sortProductsByBackground } from "@/lib/sortByBackground";
 import { useMemo } from "react";
 
@@ -33,15 +32,10 @@ const FeaturedProducts = () => {
   return (
     <section id="novidades" className="py-10 md:py-20 bg-background">
       <div className="container px-4">
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="text-center mb-8 md:mb-12"
-        >
+        <div className="text-center mb-8 md:mb-12">
           <h2 className="font-heading text-2xl md:text-3xl lg:text-4xl text-foreground font-bold">Novidades</h2>
           <p className="font-body text-muted-foreground mt-1.5 text-xs md:text-sm">As peças mais recentes da coleção</p>
-        </motion.div>
+        </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           {newProducts.map((product) => (

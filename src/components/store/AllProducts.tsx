@@ -1,7 +1,6 @@
 import { useProducts } from "@/data/products";
 import { useCategories } from "@/data/categories";
 import ProductCard from "./ProductCard";
-import { motion } from "framer-motion";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 
@@ -43,13 +42,6 @@ const AllProducts = () => {
   // Products already come sorted by sort_order from the query
   const sortedProducts = filteredProducts;
 
-  // Debug: log product order
-  useEffect(() => {
-    if (sortedProducts.length > 0) {
-      console.log("[AllProducts] Product order:", sortedProducts.slice(0, 5).map(p => `${p.name} (sort_order: ${p.sort_order})`));
-    }
-  }, [sortedProducts]);
-
   if (isLoading) {
     return (
       <section className="py-10 md:py-20 bg-secondary/20">
@@ -72,19 +64,14 @@ const AllProducts = () => {
   return (
     <section id="produtos" ref={sectionRef} className="py-10 md:py-20 bg-secondary/20">
       <div className="container px-4">
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="text-center mb-6 md:mb-10"
-        >
+        <div className="text-center mb-6 md:mb-10">
           <h2 className="font-heading text-2xl md:text-3xl lg:text-4xl text-foreground font-bold">
             {activeCategory ? activeCategory.name : "Nossos Produtos"}
           </h2>
           <p className="font-body text-muted-foreground mt-1.5 text-xs md:text-sm">
             {activeCategory ? `${sortedProducts.length} produto${sortedProducts.length !== 1 ? "s" : ""}` : "Explore toda a nossa coleção"}
           </p>
-        </motion.div>
+        </div>
 
         {/* Category filter chips */}
         <div className="flex flex-wrap justify-center gap-2 mb-6 md:mb-8">

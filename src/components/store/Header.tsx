@@ -1,16 +1,17 @@
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Search, User, ShoppingBag, Heart, Menu, X } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import SearchOverlay from "./SearchOverlay";
-import CartDrawer from "./CartDrawer";
 import defaultLogo from "@/assets/logo-vitrine-charmosa.png";
 import defaultLogoWebp from "@/assets/logo-vitrine-charmosa.webp";
 import { useCategories } from "@/data/categories";
-import { motion, AnimatePresence } from "framer-motion";
+
+// Drawers/overlays só montam apos click — chunks separados
+const SearchOverlay = lazy(() => import("./SearchOverlay"));
+const CartDrawer = lazy(() => import("./CartDrawer"));
 
 const staticFallbackLinks = [
   { label: "Novidades", href: "#produtos" },
@@ -172,46 +173,47 @@ const Header = () => {
           </div>
         </div>
 
-        {/* Mobile menu - slide down with animation */}
-        <AnimatePresence>
-          {mobileMenuOpen && (
-            <motion.nav
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.25, ease: "easeInOut" }}
-              className="lg:hidden bg-card border-t border-border/40 overflow-hidden"
-            >
-              <div className="px-5 py-4 space-y-1">
-                {navLinks.map((link) =>
-                  link.href.startsWith("/#") ? (
-                    <a
-                      key={link.label}
-                      href={link.href}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="block text-[15px] font-body font-medium text-foreground/80 hover:text-primary active:text-primary transition-colors py-3 px-3 rounded-xl active:bg-secondary/40"
-                    >
-                      {link.label}
-                    </a>
-                  ) : (
-                    <Link
-                      key={link.label}
-                      to={link.href}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="block text-[15px] font-body font-medium text-foreground/80 hover:text-primary active:text-primary transition-colors py-3 px-3 rounded-xl active:bg-secondary/40"
-                    >
-                      {link.label}
-                    </Link>
-                  )
-                )}
-              </div>
-            </motion.nav>
-          )}
-        </AnimatePresence>
+        {/* Mobile menu — CSS-only collapse (sem framer-motion no bundle inicial) */}
+        {mobileMenuOpen && (
+          <nav className="lg:hidden bg-card border-t border-border/40 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="px-5 py-4 space-y-1">
+              {navLinks.map((link) =>
+                link.href.startsWith("/#") ? (
+                  <a
+                    key={link.label}
+                    href={link.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="block text-[15px] font-body font-medium text-foreground/80 hover:text-primary active:text-primary transition-colors py-3 px-3 rounded-xl active:bg-secondary/40"
+                  >
+                    {link.label}
+                  </a>
+                ) : (
+                  <Link
+                    key={link.label}
+                    to={link.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="block text-[15px] font-body font-medium text-foreground/80 hover:text-primary active:text-primary transition-colors py-3 px-3 rounded-xl active:bg-secondary/40"
+                  >
+                    {link.label}
+                  </Link>
+                )
+              )}
+            </div>
+          </nav>
+        )}
       </header>
 
-      <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
-      <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
+      {/* Só monta os drawers quando abertos pela primeira vez — chunk lazy */}
+      {searchOpen && (
+        <Suspense fallback={null}>
+          <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
+        </Suspense>
+      )}
+      {cartOpen && (
+        <Suspense fallback={null}>
+          <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
+        </Suspense>
+      )}
     </>
   );
 };

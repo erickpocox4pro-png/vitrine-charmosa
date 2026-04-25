@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import HeroSlideshow from "./HeroSlideshow";
 import FeaturedProducts from "./FeaturedProducts";
@@ -88,9 +87,9 @@ const FeaturedProductsSection = ({ props }: { props: Record<string, any> }) => {
   return (
     <section className="py-10 md:py-20 bg-background">
       <div className="container px-4">
-        <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-8 md:mb-12">
+        <div className="text-center mb-8 md:mb-12">
           <h2 className="font-heading text-2xl md:text-3xl lg:text-4xl text-foreground font-bold">{title}</h2>
-        </motion.div>
+        </div>
         <div className={`grid grid-cols-2 md:grid-cols-3 ${gridCols} gap-3 sm:gap-4 md:gap-6`}>
           {featured.map((product) => (
             <ProductCard key={product.id} product={product} />
@@ -110,11 +109,11 @@ const TextBlockSection = ({ props }: { props: Record<string, any> }) => {
   return (
     <section className="py-12 md:py-20" style={{ backgroundColor: props.bgColor || "transparent" }}>
       <div className={`container max-w-3xl px-4 ${alignment}`}>
-        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+        <div>
           {props.title && <h2 className="font-heading text-2xl md:text-3xl lg:text-4xl text-foreground font-bold mb-4">{props.title}</h2>}
           {props.subtitle && <p className="font-body text-lg text-muted-foreground mb-4">{props.subtitle}</p>}
           {props.body && <p className="font-body text-muted-foreground leading-relaxed whitespace-pre-line">{props.body}</p>}
-        </motion.div>
+        </div>
       </div>
     </section>
   );
@@ -160,7 +159,7 @@ const AboutSection = ({ props }: { props: Record<string, any> }) => {
   return (
     <section className="py-16 md:py-24 bg-secondary/40">
       <div className="container px-4">
-        <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
+        <div>
           {layout === "text-center" ? (
             <div className="max-w-3xl mx-auto text-center">
               {props.title && <h2 className="font-heading text-3xl md:text-4xl text-foreground font-bold mb-6">{props.title}</h2>}
@@ -180,7 +179,7 @@ const AboutSection = ({ props }: { props: Record<string, any> }) => {
               )}
             </div>
           )}
-        </motion.div>
+        </div>
       </div>
     </section>
   );
@@ -197,17 +196,15 @@ const GallerySection = ({ props }: { props: Record<string, any> }) => {
     <section className="py-12 md:py-20">
       <div className="container px-4">
         {props.title && (
-          <motion.h2 initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="font-heading text-2xl md:text-3xl text-foreground font-bold text-center mb-8">
+          <h2 className="font-heading text-2xl md:text-3xl text-foreground font-bold text-center mb-8">
             {props.title}
-          </motion.h2>
+          </h2>
         )}
         <div className={`grid grid-cols-2 ${gridCols} gap-${props.gap || 4}`}>
           {images.map((img, i) => (
-            <motion.div key={i} initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ delay: i * 0.05 }}>
-              <div className="overflow-hidden rounded-xl group">
-                <img src={img} alt={`Galeria ${i + 1}`} className="w-full aspect-square object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
-              </div>
-            </motion.div>
+            <div key={i} className="overflow-hidden rounded-xl group">
+              <img src={img} alt={`Galeria ${i + 1}`} className="w-full aspect-square object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" decoding="async" />
+            </div>
           ))}
         </div>
       </div>
