@@ -1,0 +1,1 @@
+import{r as s,a2 as o,aa as u}from"./index-BUUH6_AM.js";var i=u[" useId ".trim().toString()]||(()=>{}),c=0;function n(a){const[t,r]=s.useState(i());return o(()=>{r(e=>e??String(c++))},[a]),t?`radix-${t}`:""}export{n as u};
