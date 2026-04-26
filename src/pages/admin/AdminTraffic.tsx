@@ -430,34 +430,41 @@ const AdminTraffic = () => {
 
   // === Render ===
   return (
-    <div>
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="font-body text-xl font-bold text-foreground flex items-center gap-2">
-            <BarChart3 size={20} /> Tráfego
-          </h2>
-          <p className="font-body text-xs text-muted-foreground mt-0.5">
-            Análise completa: visitantes, conversão, anúncios e funil
-          </p>
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center">
+              <BarChart3 size={18} className="text-primary" />
+            </div>
+            <div>
+              <h2 className="font-heading text-2xl font-semibold text-foreground tracking-tight">Tráfego</h2>
+              <p className="text-[13px] text-muted-foreground -mt-0.5">
+                Visitantes, conversão e atribuição
+              </p>
+            </div>
+          </div>
         </div>
-        <div className="flex gap-2 items-center">
+        <div className="flex flex-wrap gap-2 items-center">
           {/* Live indicator */}
-          <div className="flex items-center gap-1.5 bg-success/10 border border-success/20 px-2.5 py-1.5 rounded-lg">
+          <div className="flex items-center gap-1.5 bg-success/15 border border-success/30 px-3 py-1.5 rounded-lg">
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-success"></span>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-success" />
             </span>
-            <span className="font-body text-xs font-semibold text-success">{liveCount} ao vivo</span>
+            <span className="text-[13px] font-semibold text-success">{liveCount} ao vivo</span>
           </div>
           {/* Period switcher */}
-          <div className="flex gap-1 bg-secondary rounded-lg p-1">
+          <div className="flex gap-0.5 bg-secondary/60 backdrop-blur rounded-lg p-1 border border-border/40">
             {([["7d", "7d"], ["30d", "30d"], ["90d", "90d"]] as const).map(([val, label]) => (
               <button
                 key={val}
                 onClick={() => setPeriod(val)}
-                className={`px-2.5 py-1 rounded-md font-body text-xs font-medium transition-colors ${
-                  period === val ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                className={`px-3 py-1 rounded-md text-[13px] font-medium transition-all ${
+                  period === val
+                    ? "bg-card text-foreground shadow-sm ring-1 ring-border"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {label}
@@ -467,10 +474,10 @@ const AdminTraffic = () => {
           {/* Export */}
           <button
             onClick={handleExport}
-            className="flex items-center gap-1.5 bg-secondary hover:bg-secondary/80 px-3 py-1.5 rounded-lg font-body text-xs font-medium text-foreground transition-colors"
+            className="flex items-center gap-1.5 bg-secondary/60 hover:bg-secondary border border-border/40 px-3 py-1.5 rounded-lg text-[13px] font-medium text-foreground transition-colors"
             title="Baixar CSV"
           >
-            <Download size={13} /> CSV
+            <Download size={14} /> CSV
           </button>
         </div>
       </div>
@@ -492,61 +499,63 @@ const AdminTraffic = () => {
         </div>
       ) : (
         <>
-          {/* Cards principais com comparação */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-            <div className="bg-card border border-border rounded-xl p-4">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <TrendingUp size={14} />
-                <span className="font-body text-[11px] uppercase tracking-wider font-semibold">Visitas</span>
-              </div>
-              <p className="font-body text-2xl font-bold text-foreground">{visits.length}</p>
-              <div className="flex items-center justify-between mt-1">
-                <span className="font-body text-[10px] text-muted-foreground">{uniqueSessions} sessões</span>
-                <span className="font-body text-[10px]"><Trend delta={visitDelta} /></span>
-              </div>
-            </div>
-            <div className="bg-card border border-border rounded-xl p-4">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <ShoppingBag size={14} />
-                <span className="font-body text-[11px] uppercase tracking-wider font-semibold">Pedidos</span>
-              </div>
-              <p className="font-body text-2xl font-bold text-foreground">{orders.length}</p>
-              <div className="flex items-center justify-between mt-1">
-                <span className="font-body text-[10px] text-muted-foreground">
-                  {uniqueSessions > 0 ? ((orders.length / uniqueSessions) * 100).toFixed(2) : "0"}% conv
-                </span>
-                <span className="font-body text-[10px]"><Trend delta={orderDelta} /></span>
-              </div>
-            </div>
-            <div className="bg-card border border-border rounded-xl p-4">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <DollarSign size={14} />
-                <span className="font-body text-[11px] uppercase tracking-wider font-semibold">Receita</span>
-              </div>
-              <p className="font-body text-2xl font-bold text-foreground">R$ {totalRevenue.toFixed(0)}</p>
-              <div className="flex items-center justify-between mt-1">
-                <span className="font-body text-[10px] text-muted-foreground">
-                  Médio R$ {orders.length > 0 ? (totalRevenue / orders.length).toFixed(0) : "0"}
-                </span>
-                <span className="font-body text-[10px]"><Trend delta={revenueDelta} /></span>
-              </div>
-            </div>
-            <div className="bg-card border border-border rounded-xl p-4">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <Zap size={14} className="text-amber-500" />
-                <span className="font-body text-[11px] uppercase tracking-wider font-semibold">Tráfego Pago</span>
-              </div>
-              <p className="font-body text-2xl font-bold text-foreground">{paidVsOrganic.paid}</p>
-              <p className="font-body text-[10px] text-muted-foreground mt-1">
-                {paidVsOrganic.total > 0 ? ((paidVsOrganic.paid / paidVsOrganic.total) * 100).toFixed(0) : "0"}% das visitas
-              </p>
-            </div>
+          {/* KPIs — visual mais distinto, com accent vertical e gradiente */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {[
+              {
+                icon: TrendingUp, label: "Visitas", value: visits.length, accent: "primary",
+                sub: `${uniqueSessions} sessões únicas`, delta: visitDelta,
+              },
+              {
+                icon: ShoppingBag, label: "Pedidos", value: orders.length, accent: "success",
+                sub: `${uniqueSessions > 0 ? ((orders.length / uniqueSessions) * 100).toFixed(2) : "0"}% de conversão`, delta: orderDelta,
+              },
+              {
+                icon: DollarSign, label: "Receita", value: `R$ ${totalRevenue.toFixed(0)}`, accent: "info",
+                sub: `Ticket médio R$ ${orders.length > 0 ? (totalRevenue / orders.length).toFixed(0) : "0"}`, delta: revenueDelta,
+              },
+              {
+                icon: Zap, label: "Tráfego Pago", value: paidVsOrganic.paid, accent: "warning",
+                sub: `${paidVsOrganic.total > 0 ? ((paidVsOrganic.paid / paidVsOrganic.total) * 100).toFixed(0) : "0"}% das visitas`,
+              },
+            ].map((kpi) => {
+              const Icon = kpi.icon;
+              const accentMap: Record<string, string> = {
+                primary: "before:bg-primary text-primary",
+                success: "before:bg-success text-success",
+                info: "before:bg-[hsl(var(--info))] text-[hsl(var(--info))]",
+                warning: "before:bg-warning text-warning",
+              };
+              return (
+                <div
+                  key={kpi.label}
+                  className={`relative overflow-hidden rounded-xl bg-card border border-border/60 p-4 transition-all hover:border-border hover:shadow-lg before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[3px] ${accentMap[kpi.accent]}`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className={`p-1.5 rounded-md bg-current/10 ${accentMap[kpi.accent].split(" ").pop()}`}>
+                        <Icon size={14} className="opacity-90" />
+                      </div>
+                      <span className="text-[11px] font-medium text-muted-foreground tracking-tight">{kpi.label}</span>
+                    </div>
+                    {kpi.delta !== undefined && (
+                      <span className="text-[11px] font-semibold"><Trend delta={kpi.delta} /></span>
+                    )}
+                  </div>
+                  <p className="font-heading text-3xl font-bold text-foreground tabular-nums tracking-tight">{kpi.value}</p>
+                  <p className="text-[11.5px] text-muted-foreground mt-1">{kpi.sub}</p>
+                </div>
+              );
+            })}
           </div>
 
           {/* Funil */}
-          <div className="bg-card border border-border rounded-xl p-4 mb-6">
-            <h3 className="font-body text-sm font-semibold text-foreground mb-4">Funil de Conversão</h3>
-            <div className="space-y-2">
+          <div className="bg-card border border-border/60 rounded-xl p-5">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-sm font-semibold text-foreground">Funil de Conversão</h3>
+              <span className="text-[11.5px] text-muted-foreground">Visitas → Compra</span>
+            </div>
+            <div className="space-y-3">
               {funnel.map((step, i) => {
                 const top = funnel[0].count || 1;
                 const pctTop = (step.count / top) * 100;
@@ -554,17 +563,17 @@ const AdminTraffic = () => {
                 const dropoff = i > 0 && prev > 0 ? ((prev - step.count) / prev) * 100 : 0;
                 return (
                   <div key={step.stage}>
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="font-body text-xs font-medium text-foreground">{step.stage}</span>
-                      <span className="font-body text-xs text-muted-foreground">
-                        {step.count}
-                        {i > 0 && dropoff > 0 && <span className="ml-2 text-destructive/70">−{dropoff.toFixed(0)}%</span>}
+                    <div className="flex justify-between items-baseline mb-1.5">
+                      <span className="text-[13px] font-medium text-foreground">{step.stage}</span>
+                      <span className="text-[12px] text-muted-foreground tabular-nums">
+                        <span className="text-foreground font-semibold">{step.count}</span>
+                        {i > 0 && dropoff > 0 && <span className="ml-2 text-destructive/80">−{dropoff.toFixed(0)}%</span>}
                       </span>
                     </div>
-                    <div className="h-3 bg-secondary rounded-full overflow-hidden">
+                    <div className="h-2.5 bg-secondary/60 rounded-full overflow-hidden">
                       <div
-                        className="h-full rounded-full transition-all"
-                        style={{ width: `${pctTop}%`, backgroundColor: step.color, minWidth: step.count > 0 ? "4px" : "0" }}
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{ width: `${pctTop}%`, backgroundColor: step.color, minWidth: step.count > 0 ? "6px" : "0" }}
                       />
                     </div>
                   </div>
@@ -572,11 +581,11 @@ const AdminTraffic = () => {
               })}
             </div>
             {abandoned.initiated > 0 && (
-              <div className="mt-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                <p className="font-body text-[11px] text-foreground">
-                  <b>🛒 Carrinhos abandonados:</b> {abandoned.abandoned} de {abandoned.initiated} (
-                  {((abandoned.abandoned / abandoned.initiated) * 100).toFixed(0)}%) iniciaram checkout
-                  mas não compraram. Use no Facebook Ads pra remarketing.
+              <div className="mt-5 p-3.5 rounded-lg bg-warning/10 border border-warning/30">
+                <p className="text-[12.5px] text-foreground leading-relaxed">
+                  <span className="text-warning font-semibold">🛒 Carrinhos abandonados:</span> {abandoned.abandoned} de {abandoned.initiated}
+                  {" "}({((abandoned.abandoned / abandoned.initiated) * 100).toFixed(0)}%) iniciaram checkout mas não compraram.
+                  Use no Facebook Ads pra remarketing.
                 </p>
               </div>
             )}
@@ -584,33 +593,36 @@ const AdminTraffic = () => {
 
           {/* Performance por fonte */}
           {conversionBySource.length > 0 && (
-            <div className="bg-card border border-border rounded-xl p-4 mb-6 overflow-x-auto">
-              <h3 className="font-body text-sm font-semibold text-foreground mb-3">Performance por Fonte (first-touch)</h3>
-              <table className="w-full text-xs">
+            <div className="bg-card border border-border/60 rounded-xl p-5 overflow-x-auto">
+              <div className="flex items-baseline justify-between mb-4">
+                <h3 className="text-sm font-semibold text-foreground">Performance por Fonte</h3>
+                <span className="text-[11.5px] text-muted-foreground">first-touch</span>
+              </div>
+              <table className="w-full text-[13px]">
                 <thead>
                   <tr className="text-muted-foreground border-b border-border/50">
-                    <th className="text-left font-body font-semibold py-2">Fonte</th>
-                    <th className="text-right font-body font-semibold py-2">Sessões</th>
-                    <th className="text-right font-body font-semibold py-2">Pedidos</th>
-                    <th className="text-right font-body font-semibold py-2">Conv.</th>
-                    <th className="text-right font-body font-semibold py-2">Receita</th>
+                    <th className="text-left text-[11.5px] font-semibold py-2.5 uppercase tracking-wide">Fonte</th>
+                    <th className="text-right text-[11.5px] font-semibold py-2.5 uppercase tracking-wide">Sessões</th>
+                    <th className="text-right text-[11.5px] font-semibold py-2.5 uppercase tracking-wide">Pedidos</th>
+                    <th className="text-right text-[11.5px] font-semibold py-2.5 uppercase tracking-wide">Conv.</th>
+                    <th className="text-right text-[11.5px] font-semibold py-2.5 uppercase tracking-wide">Receita</th>
                   </tr>
                 </thead>
                 <tbody>
                   {conversionBySource.map((r) => (
-                    <tr key={r.key} className="border-b border-border/30 last:border-0">
-                      <td className="py-2">
-                        <span className="inline-flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: r.color }} />
-                          <span className="font-body font-medium text-foreground">{r.label}</span>
+                    <tr key={r.key} className="border-b border-border/30 last:border-0 hover:bg-secondary/30 transition-colors">
+                      <td className="py-3">
+                        <span className="inline-flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full ring-2 ring-card" style={{ backgroundColor: r.color, boxShadow: `0 0 8px ${r.color}40` }} />
+                          <span className="font-medium text-foreground">{r.label}</span>
                         </span>
                       </td>
-                      <td className="text-right font-body text-muted-foreground py-2">{r.sessions}</td>
-                      <td className="text-right font-body text-foreground font-semibold py-2">{r.orders}</td>
-                      <td className={`text-right font-body py-2 font-semibold ${r.conversion >= 2 ? "text-success" : r.conversion >= 1 ? "text-foreground" : "text-muted-foreground"}`}>
+                      <td className="text-right text-muted-foreground py-3 tabular-nums">{r.sessions}</td>
+                      <td className="text-right text-foreground font-semibold py-3 tabular-nums">{r.orders}</td>
+                      <td className={`text-right py-3 font-semibold tabular-nums ${r.conversion >= 2 ? "text-success" : r.conversion >= 1 ? "text-foreground" : "text-muted-foreground"}`}>
                         {r.conversion.toFixed(2)}%
                       </td>
-                      <td className="text-right font-body text-foreground font-semibold py-2">R$ {r.revenue.toFixed(0)}</td>
+                      <td className="text-right text-foreground font-semibold py-3 tabular-nums">R$ {r.revenue.toFixed(0)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -618,27 +630,27 @@ const AdminTraffic = () => {
             </div>
           )}
 
-          {/* Linha: Mobile vs Desktop + Melhores horários */}
-          <div className="grid md:grid-cols-2 gap-4 mb-6">
+          {/* Dispositivo + Melhores horários */}
+          <div className="grid md:grid-cols-2 gap-4">
             {/* Devices */}
-            <div className="bg-card border border-border rounded-xl p-4">
-              <h3 className="font-body text-sm font-semibold text-foreground mb-3">Dispositivo</h3>
-              <div className="space-y-3">
+            <div className="bg-card border border-border/60 rounded-xl p-5">
+              <h3 className="text-sm font-semibold text-foreground mb-4">Dispositivo</h3>
+              <div className="space-y-3.5">
                 {deviceBreakdown.map((d) => {
                   const Icon = d.icon;
                   return (
                     <div key={d.device}>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-body text-xs text-foreground inline-flex items-center gap-1.5">
-                          <Icon size={12} />
-                          {d.device}
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[13px] text-foreground inline-flex items-center gap-2">
+                          <Icon size={14} className="text-muted-foreground" />
+                          <span className="font-medium">{d.device}</span>
                         </span>
-                        <span className="font-body text-xs text-muted-foreground">
-                          {d.count} ({d.pct.toFixed(0)}%)
+                        <span className="text-[12px] text-muted-foreground tabular-nums">
+                          <span className="text-foreground font-semibold">{d.count}</span> · {d.pct.toFixed(0)}%
                         </span>
                       </div>
-                      <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                        <div className="h-full rounded-full transition-all" style={{ width: `${d.pct}%`, backgroundColor: d.color, minWidth: d.count > 0 ? "4px" : "0" }} />
+                      <div className="h-2 bg-secondary/60 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${d.pct}%`, backgroundColor: d.color, minWidth: d.count > 0 ? "6px" : "0" }} />
                       </div>
                     </div>
                   );
@@ -647,32 +659,32 @@ const AdminTraffic = () => {
             </div>
 
             {/* Melhores horários pra vender */}
-            <div className="bg-card border border-border rounded-xl p-4">
-              <h3 className="font-body text-sm font-semibold text-foreground mb-3 flex items-center gap-1.5">
-                <Clock size={14} /> Quando seu cliente compra
+            <div className="bg-card border border-border/60 rounded-xl p-5">
+              <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+                <Clock size={15} className="text-muted-foreground" /> Quando seu cliente compra
               </h3>
               {orders.length === 0 ? (
-                <p className="font-body text-xs text-muted-foreground py-4 text-center">
+                <p className="text-[13px] text-muted-foreground py-6 text-center">
                   Sem pedidos no período pra calcular.
                 </p>
               ) : (
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-success/10 border border-success/20">
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-success/15 to-success/5 border border-success/30">
                     <div>
-                      <p className="font-body text-[10px] uppercase tracking-wider font-semibold text-success">Melhor horário</p>
-                      <p className="font-body text-lg font-bold text-foreground">{bestTimes.hour}</p>
+                      <p className="text-[11px] font-semibold text-success uppercase tracking-wider">Melhor horário</p>
+                      <p className="font-heading text-xl font-bold text-foreground mt-0.5">{bestTimes.hour}</p>
                     </div>
-                    <span className="font-body text-xs font-semibold text-success">{bestTimes.hourCount} pedidos</span>
+                    <span className="text-[12px] font-semibold text-success bg-success/15 px-2.5 py-1 rounded-md">{bestTimes.hourCount} pedidos</span>
                   </div>
-                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-primary/10 border border-primary/20">
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-primary/15 to-primary/5 border border-primary/30">
                     <div>
-                      <p className="font-body text-[10px] uppercase tracking-wider font-semibold text-primary">Melhor dia</p>
-                      <p className="font-body text-lg font-bold text-foreground">{bestTimes.dow}</p>
+                      <p className="text-[11px] font-semibold text-primary uppercase tracking-wider">Melhor dia</p>
+                      <p className="font-heading text-xl font-bold text-foreground mt-0.5">{bestTimes.dow}</p>
                     </div>
-                    <span className="font-body text-xs font-semibold text-primary">{bestTimes.dowCount} pedidos</span>
+                    <span className="text-[12px] font-semibold text-primary bg-primary/15 px-2.5 py-1 rounded-md">{bestTimes.dowCount} pedidos</span>
                   </div>
-                  <p className="font-body text-[10px] text-muted-foreground italic mt-2">
-                    Use no Facebook Ads na opção "Programação de anúncios" pra concentrar verba nesses horários.
+                  <p className="text-[12px] text-muted-foreground/90 italic leading-relaxed pt-1">
+                    💡 Use no Facebook Ads em "Programação de anúncios" pra concentrar verba nesses horários.
                   </p>
                 </div>
               )}
@@ -681,8 +693,8 @@ const AdminTraffic = () => {
 
           {/* Heatmap hora x dia */}
           {visits.length > 50 && (
-            <div className="bg-card border border-border rounded-xl p-4 mb-6 overflow-x-auto">
-              <h3 className="font-body text-sm font-semibold text-foreground mb-3">Mapa de Calor — Visitas por Hora/Dia</h3>
+            <div className="bg-card border border-border/60 rounded-xl p-5 overflow-x-auto">
+              <h3 className="text-sm font-semibold text-foreground mb-4">Mapa de Calor — Visitas por Hora/Dia</h3>
               <div className="min-w-[600px]">
                 <div className="flex">
                   <div className="w-10" />
@@ -714,8 +726,8 @@ const AdminTraffic = () => {
 
           {/* Daily chart */}
           {dailyStats.length > 0 && (
-            <div className="bg-card border border-border rounded-xl p-4 mb-6">
-              <h3 className="font-body text-sm font-semibold text-foreground mb-4">Visitas e Pedidos por Dia</h3>
+            <div className="bg-card border border-border/60 rounded-xl p-5">
+              <h3 className="text-sm font-semibold text-foreground mb-5">Visitas e Pedidos por Dia</h3>
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={dailyStats}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -729,22 +741,27 @@ const AdminTraffic = () => {
             </div>
           )}
 
-          {/* Linha: Fontes barra + Pie */}
-          <div className="grid md:grid-cols-2 gap-6 mb-6">
-            <div className="bg-card border border-border rounded-xl p-4">
-              <h3 className="font-body text-sm font-semibold text-foreground mb-4">Fontes de Tráfego</h3>
+          {/* Fontes barra + Pie */}
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="bg-card border border-border/60 rounded-xl p-5">
+              <h3 className="text-sm font-semibold text-foreground mb-4">Fontes de Tráfego</h3>
               {sourceStats.length === 0 ? (
-                <p className="text-muted-foreground font-body text-xs py-8 text-center">Sem dados.</p>
+                <p className="text-muted-foreground text-[13px] py-10 text-center">Sem dados.</p>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-3.5">
                   {sourceStats.map((s) => (
                     <div key={s.key}>
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="font-body text-xs font-medium text-foreground">{s.label}</span>
-                        <span className="font-body text-xs text-muted-foreground">{s.count} ({s.percent}%)</span>
+                      <div className="flex justify-between items-center mb-1.5">
+                        <span className="text-[13px] font-medium text-foreground inline-flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: s.color }} />
+                          {s.label}
+                        </span>
+                        <span className="text-[12px] text-muted-foreground tabular-nums">
+                          <span className="text-foreground font-semibold">{s.count}</span> · {s.percent}%
+                        </span>
                       </div>
-                      <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                        <div className="h-full rounded-full transition-all" style={{ width: `${s.percent}%`, backgroundColor: s.color, minWidth: "4px" }} />
+                      <div className="h-2 bg-secondary/60 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${s.percent}%`, backgroundColor: s.color, minWidth: "6px" }} />
                       </div>
                     </div>
                   ))}
@@ -752,8 +769,8 @@ const AdminTraffic = () => {
               )}
             </div>
 
-            <div className="bg-card border border-border rounded-xl p-4">
-              <h3 className="font-body text-sm font-semibold text-foreground mb-4">Distribuição</h3>
+            <div className="bg-card border border-border/60 rounded-xl p-5">
+              <h3 className="text-sm font-semibold text-foreground mb-4">Distribuição</h3>
               {sourceStats.length > 0 ? (
                 <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
@@ -773,54 +790,54 @@ const AdminTraffic = () => {
 
           {/* Top produtos vistos */}
           {topViewedProducts.length > 0 && (
-            <div className="bg-card border border-border rounded-xl p-4 mb-6">
-              <h3 className="font-body text-sm font-semibold text-foreground mb-3">Produtos Mais Vistos</h3>
+            <div className="bg-card border border-border/60 rounded-xl p-5">
+              <h3 className="text-sm font-semibold text-foreground mb-4">Produtos Mais Vistos</h3>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 {topViewedProducts.map((p) => (
-                  <div key={p.id} className="bg-secondary/30 rounded-lg p-2.5">
+                  <div key={p.id} className="bg-secondary/40 hover:bg-secondary/60 transition-colors rounded-lg p-3 border border-border/30">
                     {p.image && (
-                      <div className="aspect-square rounded-md overflow-hidden bg-secondary mb-2">
+                      <div className="aspect-square rounded-md overflow-hidden bg-secondary mb-2.5">
                         <img src={p.image} alt={p.name} className="w-full h-full object-cover" loading="lazy" />
                       </div>
                     )}
-                    <p className="font-body text-[11px] font-medium text-foreground line-clamp-2">{p.name}</p>
-                    <p className="font-body text-[10px] text-muted-foreground mt-0.5">{p.count} visualizações</p>
+                    <p className="text-[12px] font-medium text-foreground line-clamp-2 leading-snug">{p.name}</p>
+                    <p className="text-[11px] text-muted-foreground mt-1">{p.count} visualizações</p>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Linha: Top pages + referrers */}
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="bg-card border border-border rounded-xl p-4">
-              <h3 className="font-body text-sm font-semibold text-foreground mb-3">Páginas Mais Visitadas</h3>
+          {/* Top pages + referrers */}
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="bg-card border border-border/60 rounded-xl p-5">
+              <h3 className="text-sm font-semibold text-foreground mb-4">Páginas Mais Visitadas</h3>
               {topPages.length === 0 ? (
-                <p className="text-muted-foreground font-body text-xs py-4 text-center">Sem dados.</p>
+                <p className="text-muted-foreground text-[13px] py-6 text-center">Sem dados.</p>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-0">
                   {topPages.map((p, i) => (
-                    <div key={i} className="flex justify-between items-center py-1.5 border-b border-border/50 last:border-0">
-                      <span className="font-body text-xs text-foreground truncate max-w-[70%]">{p.path}</span>
-                      <span className="font-body text-xs font-semibold text-muted-foreground">{p.count}</span>
+                    <div key={i} className="flex justify-between items-center py-2.5 border-b border-border/40 last:border-0">
+                      <span className="text-[13px] text-foreground truncate max-w-[70%] font-medium">{p.path}</span>
+                      <span className="text-[12px] font-semibold text-muted-foreground tabular-nums">{p.count}</span>
                     </div>
                   ))}
                 </div>
               )}
             </div>
 
-            <div className="bg-card border border-border rounded-xl p-4">
-              <h3 className="font-body text-sm font-semibold text-foreground mb-3 flex items-center gap-1.5">
-                <ExternalLink size={14} /> Referências Externas
+            <div className="bg-card border border-border/60 rounded-xl p-5">
+              <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+                <ExternalLink size={15} className="text-muted-foreground" /> Referências Externas
               </h3>
               {topReferrers.length === 0 ? (
-                <p className="text-muted-foreground font-body text-xs py-4 text-center">Nenhuma.</p>
+                <p className="text-muted-foreground text-[13px] py-6 text-center">Nenhuma.</p>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-0">
                   {topReferrers.map((r, i) => (
-                    <div key={i} className="flex justify-between items-center py-1.5 border-b border-border/50 last:border-0">
-                      <span className="font-body text-xs text-foreground truncate max-w-[70%]">{r.host}</span>
-                      <span className="font-body text-xs font-semibold text-muted-foreground">{r.count}</span>
+                    <div key={i} className="flex justify-between items-center py-2.5 border-b border-border/40 last:border-0">
+                      <span className="text-[13px] text-foreground truncate max-w-[70%] font-medium">{r.host}</span>
+                      <span className="text-[12px] font-semibold text-muted-foreground tabular-nums">{r.count}</span>
                     </div>
                   ))}
                 </div>
@@ -829,13 +846,13 @@ const AdminTraffic = () => {
           </div>
 
           {campaigns.length > 0 && (
-            <div className="bg-card border border-border rounded-xl p-4 mt-6">
-              <h3 className="font-body text-sm font-semibold text-foreground mb-3">Campanhas (UTM)</h3>
-              <div className="space-y-2">
+            <div className="bg-card border border-border/60 rounded-xl p-5">
+              <h3 className="text-sm font-semibold text-foreground mb-4">Campanhas (UTM)</h3>
+              <div className="space-y-0">
                 {campaigns.map((c, i) => (
-                  <div key={i} className="flex justify-between items-center py-1.5 border-b border-border/50 last:border-0">
-                    <span className="font-body text-xs text-foreground">{c.name}</span>
-                    <span className="font-body text-xs font-semibold text-muted-foreground">{c.count} visitas</span>
+                  <div key={i} className="flex justify-between items-center py-2.5 border-b border-border/40 last:border-0">
+                    <span className="text-[13px] text-foreground font-medium">{c.name}</span>
+                    <span className="text-[12px] font-semibold text-muted-foreground tabular-nums">{c.count} visitas</span>
                   </div>
                 ))}
               </div>

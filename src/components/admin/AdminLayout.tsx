@@ -193,24 +193,27 @@ const AdminLayout = () => {
       {/* Main */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar */}
-        <header className="h-14 border-b border-border bg-card flex items-center px-4 md:px-6 gap-3 shrink-0">
+        <header className="h-14 border-b border-border/60 bg-card/80 backdrop-blur-sm flex items-center px-3 md:px-6 gap-3 shrink-0 sticky top-0 z-30">
           <button
             onClick={() => setMobileOpen(true)}
-            className="md:hidden text-muted-foreground hover:text-foreground"
+            className="md:hidden p-2 -ml-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/60 active:bg-secondary transition-colors"
+            aria-label="Abrir menu"
           >
             <Menu size={20} />
           </button>
           <div className="flex-1" />
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center">
-              <span className="text-primary font-body text-xs font-semibold">A</span>
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 ring-1 ring-primary/30 flex items-center justify-center">
+              <span className="text-primary text-[13px] font-semibold">A</span>
             </div>
           </div>
         </header>
 
-        {/* Content */}
-        <main className="flex-1 p-4 md:p-6 overflow-auto">
-          <Outlet />
+        {/* Content — espaçamento mais generoso no mobile, tipografia base maior */}
+        <main className="flex-1 px-3 py-4 sm:px-5 md:px-6 md:py-6 overflow-auto pb-20 md:pb-6">
+          <div className="max-w-[1400px] mx-auto">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

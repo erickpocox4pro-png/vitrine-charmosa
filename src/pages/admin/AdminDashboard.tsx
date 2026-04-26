@@ -58,23 +58,23 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div>
-      <div className="mb-6">
-        <h2 className="font-body text-xl font-bold text-foreground">Dashboard</h2>
-        <p className="font-body text-xs text-muted-foreground mt-0.5">Visão geral da loja</p>
+    <div className="space-y-6">
+      <div>
+        <h2 className="font-heading text-2xl font-semibold text-foreground tracking-tight">Dashboard</h2>
+        <p className="text-[13px] text-muted-foreground mt-0.5">Visão geral da loja</p>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {stats.map((stat) => (
-          <div key={stat.label} className="bg-card rounded-xl p-4 border border-border">
+          <div key={stat.label} className="bg-card rounded-xl p-4 border border-border/60 hover:border-border transition-all">
             <div className="flex items-center justify-between mb-3">
-              <div className={`w-10 h-10 rounded-lg ${stat.bg} flex items-center justify-center`}>
+              <div className={`w-11 h-11 rounded-xl ${stat.bg} flex items-center justify-center`}>
                 <stat.icon size={20} className={stat.color} />
               </div>
             </div>
-            <p className="font-body text-2xl font-bold text-foreground">{stat.value}</p>
-            <p className="font-body text-xs text-muted-foreground mt-0.5">{stat.label}</p>
+            <p className="font-heading text-3xl font-bold text-foreground tabular-nums tracking-tight">{stat.value}</p>
+            <p className="text-[12px] text-muted-foreground mt-1">{stat.label}</p>
           </div>
         ))}
       </div>
@@ -98,9 +98,9 @@ const AdminDashboard = () => {
                     </div>
                     <div className="text-right">
                       <p className="font-body text-sm font-medium text-foreground">R$ {Number(order.total).toFixed(2).replace(".", ",")}</p>
-                      <span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-body font-medium ${
-                        order.status === "paid" ? "bg-green-500/15 text-green-400" :
-                        order.status === "pending" ? "bg-yellow-500/15 text-yellow-400" :
+                      <span className={`inline-flex px-2 py-0.5 rounded-md text-[11px] font-semibold ${
+                        order.status === "paid" ? "bg-success/15 text-success" :
+                        order.status === "pending" ? "bg-warning/15 text-warning" :
                         "bg-muted text-muted-foreground"
                       }`}>{order.status}</span>
                     </div>
@@ -135,7 +135,7 @@ const AdminDashboard = () => {
                         {log.action === "create" ? "criou" : log.action === "update" ? "editou" : "removeu"}{" "}
                         <span className="text-muted-foreground">{log.entity_name}</span>
                       </p>
-                      <p className="font-body text-[10px] text-muted-foreground">{formatDate(log.created_at)}</p>
+                      <p className="text-[11.5px] text-muted-foreground mt-0.5">{formatDate(log.created_at)}</p>
                     </div>
                   </div>
                 ))}
