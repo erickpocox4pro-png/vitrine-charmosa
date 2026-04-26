@@ -128,6 +128,18 @@ function detectDevice(): string {
   return "desktop";
 }
 
+/** Detecta bots/crawlers/headless — NÃO contar como visita real */
+function isBot(): boolean {
+  if (typeof navigator === "undefined") return true;
+  const ua = navigator.userAgent.toLowerCase();
+  // Headless Chrome (puppeteer/playwright), bots conhecidos, prerender, lighthouse
+  if (/headlesschrome|puppeteer|playwright|lighthouse|prerender|chrome-lighthouse/i.test(ua)) return true;
+  if (/bot|crawl|spider|slurp|bingpreview|facebookexternalhit|twitterbot|linkedinbot|whatsapp|telegrambot|googlebot|duckduckbot|ahrefsbot|semrushbot|mj12bot/i.test(ua)) return true;
+  // navigator.webdriver = true em qualquer browser controlado por automação
+  if ((navigator as any).webdriver === true) return true;
+  return false;
+}
+
 /** Atualiza linha em attribution_sessions (upsert) */
 async function upsertAttributionSession(sessionId: string, src: SourceInfo, landing_path: string, firstTouch: FirstTouch) {
   // Tenta INSERT — se conflitar (já existe), faz UPDATE só de last_*
@@ -214,6 +226,8 @@ export function useVisitTracker() {
 
   useEffect(() => {
     if (location.pathname.startsWith("/admin")) return;
+    // Bots / prerender (puppeteer no build) NÃO contam como visita
+    if (isBot()) return;
 
     // Dedup: mesma rota num intervalo de 2s não conta de novo
     const path = location.pathname + location.hash;
