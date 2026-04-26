@@ -54,6 +54,140 @@ serve(async (req) => {
       .from("product_costs")
       .select("product_id, cost");
 
+    // === DADOS DE TRÁFEGO ===
+    const last30 = new Date();
+    last30.setDate(last30.getDate() - 30);
+    const last30iso = last30.toISOString();
+
+    const [
+      { data: visits30 },
+      { data: sessions30 },
+      { data: convEvents30 },
+      { data: ordersAttr30 },
+    ] = await Promise.all([
+      supabase.from("page_visits").select("session_id, source_label, device_type, created_at, fbclid, gclid").gte("created_at", last30iso).limit(5000),
+      supabase.from("attribution_sessions").select("session_id, first_source, first_seen_at").gte("first_seen_at", last30iso).limit(5000),
+      supabase.from("conversion_events").select("event_name, session_id, created_at").gte("created_at", last30iso).limit(10000),
+      supabase.from("orders").select("id, total, source_first, source_last, fbclid, gclid, created_at, status, payment_method").gte("created_at", last30iso).limit(1000),
+    ]);
+
+    const totalVisits = (visits30 || []).length;
+    const uniqueSess = new Set((visits30 || []).map((v: any) => v.session_id).filter(Boolean)).size;
+    const sessionsBySource: Record<string, number> = {};
+    (sessions30 || []).forEach((s: any) => {
+      const k = s.first_source || "direto";
+      sessionsBySource[k] = (sessionsBySource[k] || 0) + 1;
+    });
+    const ordersBySource: Record<string, { count: number; revenue: number }> = {};
+    (ordersAttr30 || []).filter((o: any) => ["paid","delivered","shipped","processing"].includes(o.status)).forEach((o: any) => {
+      const k = o.source_first || o.source_last || "direto";
+      if (!ordersBySource[k]) ordersBySource[k] = { count: 0, revenue: 0 };
+      ordersBySource[k].count++;
+      ordersBySource[k].revenue += Number(o.total) || 0;
+    });
+    const conversionBySource = Array.from(new Set([...Object.keys(sessionsBySource), ...Object.keys(ordersBySource)])).map((src) => ({
+      source: src,
+      sessions: sessionsBySource[src] || 0,
+      orders: ordersBySource[src]?.count || 0,
+      revenue: ordersBySource[src]?.revenue || 0,
+      conv_rate: sessionsBySource[src] > 0 ? ((ordersBySource[src]?.count || 0) / sessionsBySource[src]) * 100 : 0,
+    })).sort((a, b) => b.revenue - a.revenue);
+
+    const initiateCheckoutSess = new Set((convEvents30 || []).filter((e: any) => e.event_name === "InitiateCheckout").map((e: any) => e.session_id).filter(Boolean));
+    const purchaseSess = new Set((convEvents30 || []).filter((e: any) => e.event_name === "Purchase").map((e: any) => e.session_id).filter(Boolean));
+    let abandonedCarts = 0;
+    initiateCheckoutSess.forEach((s) => { if (!purchaseSess.has(s)) abandonedCarts++; });
+
+    const deviceCount: Record<string, number> = { mobile: 0, desktop: 0, tablet: 0 };
+    (visits30 || []).forEach((v: any) => {
+      const d = (v.device_type || "desktop").toLowerCase();
+      if (d in deviceCount) deviceCount[d]++; else deviceCount.desktop++;
+    });
+
+    const paidVisits = (visits30 || []).filter((v: any) => v.fbclid || v.gclid || ["facebook-ads","google-ads","instagram-ads","tiktok-ads"].includes(v.source_label)).length;
+    const paidOrdersAttr = (ordersAttr30 || []).filter((o: any) => o.fbclid || o.gclid || ["facebook-ads","google-ads","instagram-ads","tiktok-ads"].includes(o.source_first || o.source_last));
+    const paidRevenue = paidOrdersAttr.reduce((s: number, o: any) => s + Number(o.total || 0), 0);
+
+    // Melhor hora/dia (pra programação de anúncios)
+    const ordersByHour: Record<number, number> = {};
+    const ordersByDow: Record<number, number> = {};
+    (ordersAttr30 || []).forEach((o: any) => {
+      const d = new Date(o.created_at);
+      ordersByHour[d.getHours()] = (ordersByHour[d.getHours()] || 0) + 1;
+      ordersByDow[d.getDay()] = (ordersByDow[d.getDay()] || 0) + 1;
+    });
+    const topHour = Object.entries(ordersByHour).sort(([,a],[,b]) => (b as number)-(a as number))[0];
+    const topDow = Object.entries(ordersByDow).sort(([,a],[,b]) => (b as number)-(a as number))[0];
+    const WEEKDAYS_PT = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
+
+    const trafficContext = {
+      period_days: 30,
+      total_visits: totalVisits,
+      unique_sessions: uniqueSess,
+      conversion_rate_pct: uniqueSess > 0 ? ((purchaseSess.size / uniqueSess) * 100).toFixed(2) : "0",
+      abandoned_carts: abandonedCarts,
+      cart_abandonment_rate_pct: initiateCheckoutSess.size > 0 ? ((abandonedCarts / initiateCheckoutSess.size) * 100).toFixed(0) : "0",
+      sources_top5: conversionBySource.slice(0, 5),
+      device_breakdown: deviceCount,
+      paid_traffic: {
+        visits: paidVisits,
+        orders: paidOrdersAttr.length,
+        revenue: paidRevenue,
+        roas_estimate: "depende do investimento — admin precisa informar",
+      },
+      best_sales_hour: topHour ? `${topHour[0]}h (${topHour[1]} pedidos)` : "sem dados",
+      best_sales_dow: topDow ? `${WEEKDAYS_PT[parseInt(topDow[0])]} (${topDow[1]} pedidos)` : "sem dados",
+    };
+
+    // Threshold de "dados insuficientes": <100 visitas E <5 pedidos
+    const insufficientData = totalVisits < 100 && (orders || []).filter((o: any) =>
+      ["paid","delivered","shipped","processing"].includes(o.status)
+    ).length < 5;
+
+    if (insufficientData) {
+      const insufMsg = `## ⚠️ Dados Insuficientes
+
+Ainda não temos dados suficientes para gerar uma análise consultiva confiável.
+
+**Estado atual (últimos 30 dias):**
+- Visitas: **${totalVisits}** (mínimo recomendado: 100)
+- Sessões únicas: **${uniqueSess}**
+- Pedidos pagos: **${(orders || []).filter((o: any) => ["paid","delivered","shipped","processing"].includes(o.status)).length}** (mínimo recomendado: 5)
+
+## 📋 O que você pode fazer agora
+
+1. **Subir tráfego pra loja** — divulga nas redes sociais, WhatsApp, Instagram orgânico, ou rode um anúncio teste pequeno (R$ 10–20/dia)
+2. **Garantir que o checkout funciona** — faça uma compra de teste pra validar o fluxo completo
+3. **Aguardar pelo menos 7 dias** após começar a divulgar pra gente ter base estatística
+
+Quando você tiver pelo menos **100 visitas e 5 pedidos** nos últimos 30 dias, volte aqui que eu monto uma análise completa cobrindo finanças, tráfego, conversão por fonte, melhores horários pra anunciar, abandono de carrinho, ticket médio e estratégias de cupons.`;
+
+      // Retorna SSE com a mensagem fixa (mesmo formato que o stream do Gemini)
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        start(controller) {
+          // Quebra em chunks pra simular streaming natural
+          const chunks = insufMsg.match(/.{1,40}/gs) || [insufMsg];
+          let i = 0;
+          const sendNext = () => {
+            if (i >= chunks.length) {
+              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+              controller.close();
+              return;
+            }
+            const out = `data: ${JSON.stringify({ choices: [{ delta: { content: chunks[i] } }] })}\n\n`;
+            controller.enqueue(encoder.encode(out));
+            i++;
+            setTimeout(sendNext, 15);
+          };
+          sendNext();
+        },
+      });
+      return new Response(stream, {
+        headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+      });
+    }
+
     const paidOrders = (orders || []).filter((o) =>
       ["paid", "delivered", "shipped", "processing"].includes(o.status)
     );
@@ -101,26 +235,41 @@ serve(async (req) => {
       avgCost: Object.keys(costMap).length > 0
         ? (totalProductsCost / Object.keys(costMap).length).toFixed(2)
         : "não informado",
+      traffic: trafficContext, // <-- novo
     });
 
-    const systemPrompt = `Você é um consultor financeiro especializado em e-commerce de moda feminina no Brasil.
-Analise os dados financeiros da loja e forneça recomendações detalhadas e práticas.
+    const systemPrompt = `Você é um consultor de e-commerce de moda feminina no Brasil — combina papel de CFO + Growth Manager + Mídia Paga.
+Analise os dados financeiros E de tráfego/atribuição da loja e forneça recomendações detalhadas, acionáveis e baseadas em números reais.
 Responda SEMPRE em português brasileiro. Use formatação markdown com headers ##, listas e **negrito**.
-Seja direto, prático e use números reais dos dados fornecidos.
+Seja direto, prático, e cite os números exatos dos dados fornecidos.
 
-Estruture sua resposta EXATAMENTE nestas seções:
+REGRA IMPORTANTE: se algum bloco de dados estiver vazio ou insuficiente (ex: 0 pedidos, 0 visitas em uma fonte), declare explicitamente "dados insuficientes para esta análise" naquela seção, em vez de inventar recomendações genéricas.
+
+Estruture sua resposta EXATAMENTE nestas seções (mantenha os emojis e títulos):
 ## 💰 Caixa Bruto e Receita Líquida
 ## 🏦 Reserva de Caixa Pessoal
-## 📢 Investimento em Tráfego Pago
-## 🛍️ Reinvestimento em Novas Peças
 ## 📊 Análise de Pagamentos
-## 📈 Tendências de Mercado
+## 🚦 Diagnóstico de Tráfego (últimos 30d)
+  - Comente: total de visitas, taxa de conversão geral, % de tráfego pago vs orgânico
+  - Aponte qual fonte traz MAIS RECEITA e qual tem MELHOR taxa de conversão (pode ser fontes diferentes)
+  - Se o cliente compra mais via mobile ou desktop
+## 🛒 Carrinho Abandonado
+  - Quantos sessions iniciaram checkout sem comprar e o % de abandono
+  - Recomende ação concreta (remarketing, WhatsApp, cupom de recuperação)
+## 📢 Investimento em Tráfego Pago
+  - Se a loja JÁ recebe tráfego pago: comente o volume e se está convertendo
+  - Se NÃO recebe: oriente como começar (orçamento inicial, otimizar por evento Purchase, públicos lookalike)
+## ⏰ Quando Anunciar
+  - Use o melhor horário e melhor dia da semana de pedidos pra recomendar programação de anúncios
+## 🛍️ Reinvestimento em Novas Peças
+## 📈 Tendências de Mercado (moda feminina BR — sazonalidade do mês atual)
 ## ⚠️ Pontos a Melhorar
+  - Liste 3 a 5 problemas concretos detectados nos números, em ordem de prioridade
 ## 🎟️ Estratégias de Cupons
 ## 🎯 Aumento do Ticket Médio
 ## 📅 Descontos em Datas Especiais`;
 
-    const userContent = `Aqui estão os dados financeiros atuais da loja:\n\n${financialContext}\n\nForneça uma análise completa com recomendações práticas e específicas baseadas nesses números reais.`;
+    const userContent = `Aqui estão os dados completos da loja (financeiros + tráfego/atribuição):\n\n${financialContext}\n\nForneça uma análise completa, prática e específica. Use SEMPRE os números reais. Se algum dado estiver vazio, declare "dados insuficientes" naquela seção em vez de inventar.`;
 
     const upstream = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse&key=${GEMINI_API_KEY}`,

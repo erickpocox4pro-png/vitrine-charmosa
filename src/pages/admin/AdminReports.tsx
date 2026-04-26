@@ -289,8 +289,16 @@ const AdminReports = () => {
       .sort((a, b) => b.value - a.value);
   }, [orders, manualSales]);
 
-  const PAYMENT_COLORS = ["hsl(174, 72%, 52%)", "hsl(200, 70%, 55%)", "hsl(38, 92%, 55%)", "hsl(280, 60%, 55%)"];
-  const PAYMENT_ICONS = [CreditCard, QrCode, FileText, FileText];
+  // Mapa de cor + ícone POR método (não por posição) — antes vinha trocado
+  const PAYMENT_STYLE: Record<string, { color: string; icon: typeof QrCode }> = {
+    "Pix":              { color: "hsl(142, 71%, 45%)", icon: QrCode },        // verde + QR
+    "Cartão Crédito":   { color: "hsl(200, 70%, 55%)", icon: CreditCard },    // azul + cartão
+    "Cartão Débito":    { color: "hsl(280, 60%, 55%)", icon: Wallet },        // roxo + carteira
+    "Boleto":           { color: "hsl(38, 92%, 55%)",  icon: FileText },      // âmbar + papel
+    "Outros":           { color: "hsl(0, 0%, 60%)",    icon: DollarSign },    // cinza
+  };
+  const FALLBACK_STYLE = { color: "hsl(174, 72%, 52%)", icon: DollarSign };
+  const styleFor = (name: string) => PAYMENT_STYLE[name] || FALLBACK_STYLE;
 
   /* ── Revenue sub-metrics (orders + manual sales) ── */
   const todayRevenue = orders.filter((o) => new Date(o.created_at) >= startOfDay(new Date())).reduce((s, o) => s + Number(o.total), 0)
@@ -425,17 +433,16 @@ const AdminReports = () => {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie data={paymentMethods} cx="50%" cy="50%" innerRadius={28} outerRadius={48} dataKey="value" strokeWidth={0}>
-                      {paymentMethods.map((_, i) => (
-                        <Cell key={i} fill={PAYMENT_COLORS[i % PAYMENT_COLORS.length]} />
+                      {paymentMethods.map((m) => (
+                        <Cell key={m.name} fill={styleFor(m.name).color} />
                       ))}
                     </Pie>
                   </PieChart>
                 </ResponsiveContainer>
               </div>
               <div className="flex-1 space-y-3">
-                {paymentMethods.map((m, i) => {
-                  const IconComp = PAYMENT_ICONS[i % PAYMENT_ICONS.length];
-                  const color = PAYMENT_COLORS[i % PAYMENT_COLORS.length];
+                {paymentMethods.map((m) => {
+                  const { icon: IconComp, color } = styleFor(m.name);
                   return (
                     <div key={m.name} className="flex items-center gap-3">
                       <div className="h-8 w-8 rounded-lg bg-secondary flex items-center justify-center shrink-0">
