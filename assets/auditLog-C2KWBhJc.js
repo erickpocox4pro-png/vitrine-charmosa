@@ -1,1 +1,0 @@
-import{s as e}from"./index-BOPcOKiR.js";const l=async(i,a,s,n,r)=>{try{const{data:{session:t}}=await e.auth.getSession();if(!t)return;await e.from("audit_logs").insert({admin_user_id:t.user.id,admin_email:t.user.email||"",action:i,entity_type:a,entity_id:s||null,entity_name:n||null,details:r||{}})}catch(t){console.error("Audit log error:",t)}};export{l};

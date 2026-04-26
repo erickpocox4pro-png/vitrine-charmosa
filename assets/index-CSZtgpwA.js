@@ -1,1 +1,0 @@
-import{r as s,a0 as o,a8 as u}from"./index-BOPcOKiR.js";var i=u[" useId ".trim().toString()]||(()=>{}),c=0;function n(a){const[t,r]=s.useState(i());return o(()=>{r(e=>e??String(c++))},[a]),t?`radix-${t}`:""}export{n as u};
