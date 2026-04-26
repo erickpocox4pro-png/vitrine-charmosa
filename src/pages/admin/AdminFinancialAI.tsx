@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Brain, RefreshCw, Sparkles, TrendingUp, Wallet, Target, Calendar, Tag, ShoppingCart, BarChart3, AlertTriangle, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const sectionIcons: Record<string, any> = {
   "Caixa Bruto": Wallet,
@@ -28,12 +29,19 @@ const AdminFinancialAI = () => {
     setHasGenerated(true);
 
     try {
+      // Pega o token da sessão do usuário logado (admin) — sem isso a edge
+      // function não consegue identificar o user e retorna "Não autenticado"
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error("Faça login como admin novamente.");
+
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-financial-recommendations`;
       const resp = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${token}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
         body: JSON.stringify({}),
       });
