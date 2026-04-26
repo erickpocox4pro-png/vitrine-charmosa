@@ -229,6 +229,13 @@ export function useVisitTracker() {
   }, [location.pathname, location.hash]);
 }
 
+/** Lê cookie por nome (lado client). */
+function readCookie(name: string): string {
+  if (typeof document === "undefined") return "";
+  const m = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
+  return m ? m[2] : "";
+}
+
 /** Helper síncrono pra obter contexto de atribuição em pontos de conversão (ex: criar pedido) */
 export function getAttributionContext() {
   const ft = getFirstTouch();
@@ -237,5 +244,7 @@ export function getAttributionContext() {
     session_id: getSessionId(),
     first: ft,
     last: lt,
+    fbp: readCookie("_fbp"),  // Browser ID que o Pixel cria
+    fbc: readCookie("_fbc"),  // Click ID do FB (formato fb.1.<ts>.<fbclid>)
   };
 }

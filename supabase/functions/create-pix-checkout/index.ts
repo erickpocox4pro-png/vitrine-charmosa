@@ -290,6 +290,49 @@ serve(async (req) => {
       note: `Pedido criado via PIX. Código: ${code}`,
     });
 
+    // 13. Conversion API server-side (Purchase) — espelho do Pixel client
+    // eventID = order.id pra dedupe com o evento client-side
+    try {
+      const capiUrl = `${supabaseUrl}/functions/v1/meta-capi`;
+      await fetch(capiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY") || ""}`,
+          "User-Agent": req.headers.get("user-agent") || "",
+          "X-Forwarded-For": req.headers.get("x-forwarded-for") || "",
+        },
+        body: JSON.stringify({
+          event_name: "Purchase",
+          event_id: order.id,
+          event_source_url: req.headers.get("referer") || "https://vitrinecharmosa.com.br/checkout",
+          user_data: {
+            email: shippingAddress?.email,
+            phone: shippingAddress?.phone,
+            first_name: (shippingAddress?.name || "").split(" ")[0],
+            last_name: (shippingAddress?.name || "").split(" ").slice(1).join(" "),
+            city: shippingAddress?.city,
+            state: shippingAddress?.state,
+            zip: shippingAddress?.cep,
+            country: "br",
+            external_id: user.id,
+            fbp: attribution?.fbp || "",
+            fbc: attribution?.fbc || (attribution?.fbclid ? `fb.1.${Math.floor(Date.now() / 1000)}.${attribution.fbclid}` : ""),
+          },
+          custom_data: {
+            currency: "BRL",
+            value: totalAmount,
+            content_type: "product",
+            content_ids: orderItems.map((i: any) => i.product_id),
+            num_items: orderItems.reduce((s: number, i: any) => s + (Number(i.quantity) || 0), 0),
+          },
+          fbclid: attribution?.fbclid,
+        }),
+      }).catch((e) => console.warn("[capi] falhou (não bloqueante):", e.message));
+    } catch (e: any) {
+      console.warn("[capi] erro:", e?.message);
+    }
+
     return new Response(
       JSON.stringify({
         orderId: order.id,

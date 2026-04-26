@@ -217,7 +217,7 @@ const Checkout = () => {
     metaPixel.lead({ value: totalPrice });
   };
 
-  // Atribuição enviada nas edge functions — pra gravar source da venda
+  // Atribuição enviada nas edge functions — pra gravar source da venda + CAPI
   const attribution = useMemo(() => {
     const ctx = getAttributionContext();
     return {
@@ -229,6 +229,8 @@ const Checkout = () => {
       utm_content: ctx.last.utm_content,
       fbclid: ctx.last.fbclid,
       gclid: ctx.last.gclid,
+      fbp: ctx.fbp,    // Cookie do Pixel pra dedupe CAPI
+      fbc: ctx.fbc,
       source_first: ctx.first?.source_label || ctx.last.source_label,
       source_last: ctx.last.source_label,
     };
