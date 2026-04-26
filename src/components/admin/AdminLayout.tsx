@@ -6,7 +6,7 @@ import {
   Package, Tag, LayoutDashboard, LogOut, ArrowLeft, History,
   ShoppingBag, Users, Ticket, Image, Settings, BarChart3,
   ChevronLeft, ChevronRight, Menu, Paintbrush, Upload, ImageIcon, Layout,
-  Store, Globe, Truck, ArrowUpDown, Brain,
+  Store, Globe, Truck, ArrowUpDown, Brain, MessageSquare,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
@@ -32,6 +32,7 @@ const navSections = [
     title: "Clientes",
     items: [
       { label: "Clientes", href: "/admin/clientes", icon: Users },
+      { label: "Chatbot Sofia", href: "/admin/chatbot", icon: MessageSquare },
       { label: "Cupons", href: "/admin/cupons", icon: Ticket },
     ],
   },

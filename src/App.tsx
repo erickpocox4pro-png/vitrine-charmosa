@@ -11,6 +11,7 @@ import ThemeProvider from "@/components/ThemeProvider";
 import MaintenancePage from "@/components/store/MaintenancePage";
 import { useVisitTracker } from "@/lib/visitTracker";
 import Index from "./pages/Index";
+import ChatWidget from "@/components/ChatWidget";
 
 // Páginas públicas pesadas — lazy
 const Login = lazy(() => import("./pages/Login"));
@@ -46,6 +47,7 @@ const AdminTraffic = lazy(() => import("./pages/admin/AdminTraffic"));
 const AdminDeliveries = lazy(() => import("./pages/admin/AdminDeliveries"));
 const AdminProductOrder = lazy(() => import("./pages/admin/AdminProductOrder"));
 const AdminFinancialAI = lazy(() => import("./pages/admin/AdminFinancialAI"));
+const AdminChatbot = lazy(() => import("./pages/admin/AdminChatbot"));
 
 const queryClient = new QueryClient();
 
@@ -78,6 +80,7 @@ const AppRoutes = () => {
 
   return (
     <Suspense fallback={<RouteFallback />}>
+      <ChatWidget />
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/login" element={<Login />} />
@@ -110,6 +113,7 @@ const AppRoutes = () => {
           <Route path="trafego" element={<AdminTraffic />} />
           <Route path="entregas" element={<AdminDeliveries />} />
           <Route path="consultor-financeiro" element={<AdminFinancialAI />} />
+          <Route path="chatbot" element={<AdminChatbot />} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>
