@@ -83,8 +83,26 @@ Quando decidir que precisa de humano, termine sua mensagem com a tag exata: \`[H
 - Não escreva listas longas ou textos enormes.
 - Não saia do tom amigável e brasileiro.
 
-# Catálogo (consulta dinâmica)
-Quando cliente pergunta sobre produto específico, você verá um bloco \`[CATALOG_INFO]\` na mensagem com produtos relevantes. Use só essas informações.`;
+# Catálogo e categorias — REGRA DURA (CRÍTICO)
+A cada mensagem você recebe DOIS blocos com a verdade do banco:
+- \`[CATEGORIES]\`: lista REAL de categorias com seus links
+- \`[CATALOG]\`: TODOS os produtos ativos com preço, link e variantes (tamanhos/cores) com estoque atual
+
+**NUNCA invente categoria, produto, preço ou estoque** — se não está nos blocos, NÃO existe. Esquece o que você "acha" que existe; só vale o que tá no contexto.
+
+## Como usar o catálogo
+1. Cliente pergunta "tem cropped?" → você procura nos nomes de produtos do [CATALOG] palavras como "cropped", e responde com o(s) que achou. Se achou: cita 1-3 produtos específicos com nome + preço + link, e indica a categoria pra ela ver mais. Se não achou nenhum: diga "no momento não tenho cropped no estoque, mas dá uma olhada em [Partes de cima] que pode ter algo parecido 💕".
+2. Cliente pergunta "tem tamanho M?" de um produto específico → cheque as variantes daquele produto no [CATALOG]. Se M tem estoque > 0 → confirma. Se "M-cor:0esg" → diga ESGOTADO no M e ofereça outro tamanho disponível.
+3. Cliente pergunta preço → cite o preço EXATO do [CATALOG]. Se tem desconto ("de R$X por R$Y"), mencione os dois pra valorizar.
+4. Cliente quer recomendação → sugere 2-3 produtos do catálogo conforme o contexto (ex: "pra evento" → vestidos; "pro dia a dia" → partes de cima/baixo).
+5. Cliente pergunta "tem na cor X?" → veja as variantes do produto no [CATALOG] e responde só as cores reais.
+
+## Quando o catálogo NÃO tem
+- Se buscou e não achou nada parecido → seja honesta: "Hmm, esse modelo específico não tô vendo no estoque agora. Quer que eu chame nossa equipe pra ver se chega em breve? 💌" (e sinaliza [HUMAN_REQUEST]).
+- Não fale "vai chegar em breve" se não tem certeza.
+
+## Links
+SEMPRE que recomendar produto, inclua o link \`/produto/<slug>\` exatamente como aparece no [CATALOG]. Pra categoria, \`/categoria/<slug>\` do [CATEGORIES].`;
 
 function isWithinSupportHours(): boolean {
   const now = new Date();
@@ -101,33 +119,84 @@ function isWithinSupportHours(): boolean {
   return totalMin >= 600 && totalMin < 1230;
 }
 
-async function searchCatalog(supabase: any, query: string): Promise<string> {
-  if (!query || query.length < 3) return "";
-  // Busca simples por nome/descrição
+// === MEMÓRIA ESTÁTICA DA SOFIA ===
+// Cache em memória do edge runtime (vive enquanto a instância tá quente).
+// TTL curto pra refletir mudanças de estoque/cadastro sem precisar redeploy.
+interface MemoryCache {
+  categories: string;
+  catalog: string;
+  loadedAt: number;
+}
+let SOFIA_MEMORY: MemoryCache | null = null;
+const MEMORY_TTL_MS = 60_000; // 60s — equilibra freshness vs DB load
+
+async function loadSofiaMemory(supabase: any, force = false): Promise<MemoryCache> {
+  const now = Date.now();
+  if (!force && SOFIA_MEMORY && now - SOFIA_MEMORY.loadedAt < MEMORY_TTL_MS) {
+    return SOFIA_MEMORY;
+  }
+  const [categories, catalog] = await Promise.all([
+    fetchCategories(supabase),
+    fetchFullCatalog(supabase),
+  ]);
+  SOFIA_MEMORY = { categories, catalog, loadedAt: now };
+  return SOFIA_MEMORY;
+}
+
+async function fetchCategories(supabase: any): Promise<string> {
   const { data } = await supabase
+    .from("categories")
+    .select("name, slug")
+    .order("sort_order");
+  if (!data || data.length === 0) return "(nenhuma categoria cadastrada)";
+  return data.map((c: any) => `- ${c.name} → /categoria/${c.slug}`).join("\n");
+}
+
+async function fetchFullCatalog(supabase: any): Promise<string> {
+  // Pega todos produtos ativos + suas variantes ativas. Formato compacto pra economizar tokens.
+  const { data: products } = await supabase
     .from("products")
-    .select("name, price, original_price, slug, stock, description")
+    .select("id, name, price, original_price, slug, stock, categories(name, slug), product_variants(size, color_name, numbering, stock, is_active, price)")
     .eq("is_active", true)
-    .or(`name.ilike.%${query}%,description.ilike.%${query}%`)
-    .limit(5);
-  if (!data || data.length === 0) return "";
-  return data
+    .order("name")
+    .limit(300);
+  if (!products || products.length === 0) return "(catálogo vazio)";
+
+  return products
     .map((p: any) => {
       const hasDiscount = p.original_price && Number(p.original_price) > Number(p.price);
-      const discountTxt = hasDiscount ? ` (de R$${p.original_price} por R$${p.price})` : ` (R$${p.price})`;
-      const stockTxt = p.stock > 0 ? `${p.stock} em estoque` : "esgotado";
-      return `- ${p.name}${discountTxt} — ${stockTxt} — link: /produto/${p.slug}`;
+      const priceTxt = hasDiscount ? `de R$${p.original_price} por R$${p.price}` : `R$${p.price}`;
+      const cat = p.categories?.name ? `${p.categories.name}` : "sem categoria";
+      const slug = `/produto/${p.slug}`;
+
+      // Variantes ativas
+      const vars = (p.product_variants || []).filter((v: any) => v.is_active !== false);
+      let varsTxt = "";
+      if (vars.length === 0) {
+        // Sem variantes — usa estoque do produto
+        varsTxt = p.stock > 0 ? `disponível (${p.stock} un)` : "ESGOTADO";
+      } else {
+        // Compacta variantes: "P-rosa:3 M-rosa:0esg G-preto:5"
+        varsTxt = vars
+          .map((v: any) => {
+            const parts = [v.size, v.color_name, v.numbering].filter(Boolean).join("-");
+            const stk = v.stock > 0 ? `${v.stock}` : "0esg";
+            return `${parts || "única"}:${stk}`;
+          })
+          .join(" ");
+      }
+
+      return `• ${p.name} | ${cat} | ${priceTxt} | ${slug} | ${varsTxt}`;
     })
     .join("\n");
 }
 
-async function callGemini(apiKey: string, history: ChatMessage[], catalogInfo: string, withinHours: boolean): Promise<string> {
+async function callGemini(apiKey: string, history: ChatMessage[], catalogInfo: string, categoriesInfo: string, withinHours: boolean): Promise<string> {
   const lastUserMsg = history[history.length - 1];
   let augmentedContent = lastUserMsg.content;
-  if (catalogInfo) {
-    augmentedContent = `[CATALOG_INFO]\n${catalogInfo}\n[/CATALOG_INFO]\n\n${augmentedContent}`;
-  }
-  augmentedContent += `\n\n[CONTEXT] Horário humano agora: ${withinHours ? "DENTRO" : "FORA"} do expediente.`;
+  // Prepara contexto: categorias + catálogo completo
+  const contextHeader = `[CATEGORIES] (lista REAL — não invente outras)\n${categoriesInfo}\n[/CATEGORIES]\n\n[CATALOG] (todos os produtos ativos com variantes — formato: nome | categoria | preço | link | variantes:estoque)\nLegenda variantes: "P-rosa:3" = tamanho P cor rosa com 3 unidades; "0esg" = ESGOTADO; "única:5" = sem variantes, 5 un\n${catalogInfo}\n[/CATALOG]\n\n[CONTEXT] Horário humano agora: ${withinHours ? "DENTRO" : "FORA"} do expediente.\n\n--- MENSAGEM DA CLIENTE ---\n`;
+  augmentedContent = contextHeader + augmentedContent;
 
   const contents = history.slice(0, -1).map((m) => ({
     role: m.role === "assistant" ? "model" : "user",
@@ -255,12 +324,14 @@ serve(async (req) => {
     // Status 'bot': chama Gemini
     const messages = convo.messages as ChatMessage[];
     const recentHistory = messages.slice(-12); // últimas 12 mensagens pra não estourar contexto
-    const catalogInfo = await searchCatalog(supabase, message);
+    const memory = await loadSofiaMemory(supabase);
+    const catalogInfo = memory.catalog;
+    const categoriesInfo = memory.categories;
     const withinHours = isWithinSupportHours();
 
     let botReply: string;
     try {
-      botReply = await callGemini(GEMINI_API_KEY, recentHistory, catalogInfo, withinHours);
+      botReply = await callGemini(GEMINI_API_KEY, recentHistory, catalogInfo, categoriesInfo, withinHours);
     } catch {
       botReply = "Tô com um probleminha técnico aqui 😅 Tenta de novo em instantes ou clica pra falar com nossa equipe no WhatsApp 💌";
     }
