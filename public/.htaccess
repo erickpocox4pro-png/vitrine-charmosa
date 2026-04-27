@@ -4,6 +4,23 @@ Options -MultiViews
 RewriteEngine On
 RewriteBase /
 
+# === REDIRECTS 301 (SEO — URLs antigas) ===
+# URL antiga com query param ?categoria= → formato novo /categoria/
+RewriteCond %{QUERY_STRING} ^categoria=Conjuntos$ [NC]
+RewriteRule ^$ /categoria/conjuntos? [R=301,L]
+RewriteCond %{QUERY_STRING} ^categoria=([^&]+)$ [NC]
+RewriteRule ^$ /categoria/%1? [R=301,L,NE]
+
+# Slugs deletados/migrados — redirecionam pra produto vivo
+RewriteRule ^produto/macaquinho-brenda-1/?$ /produto/macaquinho-brenda [R=301,L]
+RewriteRule ^produto/short-jeans-e3b2/?$ /produto/short-jeans-feminino [R=301,L]
+# Short Jeans duplicados desativados → produto canônico
+RewriteRule ^produto/short-jeans-(k2c4|p1l3|r5l7|thjk)/?$ /produto/short-jeans-feminino [R=301,L]
+
+# Trailing slash → sem barra (canonical único)
+RewriteCond %{REQUEST_URI} ^/(produto|categoria)/[^/]+/$
+RewriteRule ^(.*)/$ /$1 [R=301,L]
+
 # Não reescrever para arquivos ou diretórios reais
 RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d
