@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   MessageSquare, Send, UserCheck, Bot, X, Loader2,
-  Filter, Search, Volume2, VolumeX, Inbox, Clock,
+  Filter, Search, Volume2, VolumeX, Inbox, Clock, Trash2,
 } from "lucide-react";
 
 interface ChatMessage {
@@ -217,6 +217,36 @@ export default function AdminChatbot() {
     setSending(false);
   };
 
+  const deleteOne = async (id: string) => {
+    if (!confirm("Apagar esta conversa permanentemente?")) return;
+    const { error } = await supabase.from("chat_conversations").delete().eq("id", id);
+    if (error) {
+      alert("Erro: " + error.message);
+      return;
+    }
+    if (selectedId === id) setSelectedId(null);
+  };
+
+  const deleteClosed = async () => {
+    const closedCount = convos.filter((c) => c.status === "closed").length;
+    if (closedCount === 0) {
+      alert("Nenhuma conversa encerrada pra apagar.");
+      return;
+    }
+    if (!confirm(`Apagar ${closedCount} conversa(s) encerrada(s)?`)) return;
+    const { error } = await supabase.from("chat_conversations").delete().eq("status", "closed");
+    if (error) alert("Erro: " + error.message);
+  };
+
+  const deleteAll = async () => {
+    if (convos.length === 0) return;
+    const txt = prompt(`Apagar TODAS as ${convos.length} conversas? Digite "APAGAR" pra confirmar.`);
+    if (txt !== "APAGAR") return;
+    const { error } = await supabase.from("chat_conversations").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    if (error) alert("Erro: " + error.message);
+    setSelectedId(null);
+  };
+
   const toggleSound = () => {
     const next = !soundOn;
     setSoundOn(next);
@@ -243,12 +273,28 @@ export default function AdminChatbot() {
             Atendimento automatizado + takeover humano em tempo real
           </p>
         </div>
-        <button
-          onClick={toggleSound}
-          className="text-xs px-3 py-1.5 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/80 flex items-center gap-1.5"
-        >
-          {soundOn ? <Volume2 size={14} /> : <VolumeX size={14} />} Som {soundOn ? "ligado" : "mudo"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggleSound}
+            className="text-xs px-3 py-1.5 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/80 flex items-center gap-1.5"
+          >
+            {soundOn ? <Volume2 size={14} /> : <VolumeX size={14} />} Som {soundOn ? "ligado" : "mudo"}
+          </button>
+          <button
+            onClick={deleteClosed}
+            className="text-xs px-3 py-1.5 rounded-lg bg-secondary text-muted-foreground hover:text-warning hover:bg-warning/10 flex items-center gap-1.5"
+            title="Apagar conversas encerradas"
+          >
+            <Trash2 size={14} /> Limpar encerradas
+          </button>
+          <button
+            onClick={deleteAll}
+            className="text-xs px-3 py-1.5 rounded-lg bg-secondary text-muted-foreground hover:text-destructive hover:bg-destructive/10 flex items-center gap-1.5"
+            title="Apagar TODAS as conversas"
+          >
+            <Trash2 size={14} /> Limpar tudo
+          </button>
+        </div>
       </div>
 
       {/* KPIs */}
@@ -331,10 +377,10 @@ export default function AdminChatbot() {
                 const lastMsg = c.messages[c.messages.length - 1];
                 const isSelected = c.id === selectedId;
                 return (
-                  <button
+                  <div
                     key={c.id}
                     onClick={() => setSelectedId(c.id)}
-                    className={`w-full text-left px-3 py-2.5 border-b border-border/50 transition relative ${
+                    className={`group w-full text-left px-3 py-2.5 border-b border-border/50 transition relative cursor-pointer ${
                       isSelected ? "bg-primary/10" : "hover:bg-secondary/50"
                     }`}
                   >
@@ -371,7 +417,14 @@ export default function AdminChatbot() {
                         {c.unread_admin_count}
                       </span>
                     )}
-                  </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); deleteOne(c.id); }}
+                      className="absolute right-2 bottom-2 p-1 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition"
+                      title="Apagar conversa"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
                 );
               })
             )}
